@@ -9,10 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CurrencyDisplay, ProfitDisplay } from '@/components/ui/CurrencyDisplay';
 import { toast } from 'sonner';
-import { TrendingUp, AlertCircle, Package, ArrowRight, Coins } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { TrendingUp, Package, ArrowRight, Coins } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import type { CurrencyUnit } from '@/types/inventory';
+
+const currencyOptions: { value: CurrencyUnit; label: string }[] = [
+  { value: 'WL', label: 'World Lock (WL)' },
+  { value: 'DL', label: 'Diamond Lock (DL)' },
+  { value: 'BGL', label: 'Blue Gem Lock (BGL)' },
+];
 
 export default function Sales() {
   const { data, getDistinctAvailableItems, getAvailableEntriesForItem, addSale } = useApp();
@@ -21,6 +27,7 @@ export default function Sales() {
   const [selectedEntryId, setSelectedEntryId] = useState<string>('');
   const [quantitySold, setQuantitySold] = useState('');
   const [amountGained, setAmountGained] = useState('');
+  const [currencyUnit, setCurrencyUnit] = useState<CurrencyUnit>('WL');
   const [notes, setNotes] = useState('');
   const [soldAt, setSoldAt] = useState(() => {
     const now = new Date();
@@ -46,11 +53,12 @@ export default function Sales() {
     setAmountGained('');
   };
 
-  // Calculate profit preview
+  // Calculate profit preview (note: different currencies may be used)
   const qty = parseInt(quantitySold, 10) || 0;
   const amount = parseFloat(amountGained) || 0;
   const costOfSold = selectedEntry ? qty * selectedEntry.unitCost : 0;
-  const profit = amount - costOfSold;
+  const sameCurrency = selectedEntry?.currencyUnit === currencyUnit;
+  const profit = sameCurrency ? amount - costOfSold : null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +81,7 @@ export default function Sales() {
     }
 
     try {
-      addSale(selectedEntryId, qtyNum, amountNum, notes, new Date(soldAt).toISOString());
+      addSale(selectedEntryId, qtyNum, amountNum, currencyUnit, notes, new Date(soldAt).toISOString());
       toast.success('Sale recorded successfully');
 
       // Reset form
@@ -96,23 +104,6 @@ export default function Sales() {
       minute: '2-digit',
     });
   };
-
-  if (!data.meta.currencyUnit) {
-    return (
-      <div>
-        <PageHeader title="Record Sale" description="Log a sale from your inventory" />
-        <Alert className="animate-fade-in">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>You need to set a currency in Settings first.</span>
-            <Button asChild size="sm" className="ml-4">
-              <Link to="/settings">Go to Settings</Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
 
   if (availableItems.length === 0) {
     return (
@@ -222,7 +213,7 @@ export default function Sales() {
               {/* Step 3: Sale Details */}
               {selectedEntryId && (
                 <div className="space-y-6 animate-fade-in">
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="quantity">Quantity Sold *</Label>
                       <Input
@@ -239,7 +230,30 @@ export default function Sales() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="amount">Amount Gained ({data.meta.currencyUnit}) *</Label>
+                      <Label>Sale Currency *</Label>
+                      <Select value={currencyUnit} onValueChange={(v) => setCurrencyUnit(v as CurrencyUnit)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {currencyOptions.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              <span className={cn(
+                                'px-1.5 py-0.5 text-xs font-mono rounded mr-2',
+                                opt.value === 'WL' && 'currency-wl',
+                                opt.value === 'DL' && 'currency-dl',
+                                opt.value === 'BGL' && 'currency-bgl'
+                              )}>
+                                {opt.value}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="amount">Amount Gained ({currencyUnit}) *</Label>
                       <Input
                         id="amount"
                         type="number"
@@ -297,7 +311,7 @@ export default function Sales() {
                     <span className="text-muted-foreground">Revenue</span>
                     <CurrencyDisplay
                       amount={amount}
-                      currency={data.meta.currencyUnit}
+                      currency={currencyUnit}
                       size="sm"
                     />
                   </div>
@@ -305,20 +319,32 @@ export default function Sales() {
                     <span className="text-muted-foreground">Cost of Goods</span>
                     <CurrencyDisplay
                       amount={costOfSold}
-                      currency={data.meta.currencyUnit}
+                      currency={selectedEntry?.currencyUnit || 'WL'}
                       size="sm"
                     />
                   </div>
                   <hr className="border-border" />
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Profit</span>
-                    <ProfitDisplay
-                      profit={qty > 0 && amount > 0 ? profit : 0}
-                      currency={data.meta.currencyUnit}
-                      size="lg"
-                    />
+                    {sameCurrency && profit !== null ? (
+                      <ProfitDisplay
+                        profit={qty > 0 && amount > 0 ? profit : 0}
+                        currency={currencyUnit}
+                        size="lg"
+                      />
+                    ) : (
+                      <span className="text-sm text-muted-foreground">
+                        Mixed currencies
+                      </span>
+                    )}
                   </div>
                 </div>
+
+                {!sameCurrency && selectedEntry && (
+                  <p className="text-xs text-warning bg-warning/10 p-2 rounded">
+                    Note: Selling in {currencyUnit} but bought in {selectedEntry.currencyUnit}. Profit shown separately.
+                  </p>
+                )}
 
                 <Button
                   type="submit"

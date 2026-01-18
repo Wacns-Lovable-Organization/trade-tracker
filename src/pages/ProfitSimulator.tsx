@@ -8,11 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CurrencyDisplay, ProfitDisplay } from '@/components/ui/CurrencyDisplay';
 import { toast } from 'sonner';
-import { Calculator, AlertCircle, Package, TrendingUp, TrendingDown, Zap } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Calculator, Package, TrendingUp, TrendingDown, Zap, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import type { SimulationResult } from '@/types/inventory';
+import type { CurrencyUnit } from '@/types/inventory';
+
+const currencyOptions: { value: CurrencyUnit; label: string }[] = [
+  { value: 'WL', label: 'World Lock (WL)' },
+  { value: 'DL', label: 'Diamond Lock (DL)' },
+  { value: 'BGL', label: 'Blue Gem Lock (BGL)' },
+];
 
 export default function ProfitSimulator() {
   const { data, getDistinctAvailableItems, getAvailableEntriesForItem, simulateProfit } = useApp();
@@ -20,7 +25,8 @@ export default function ProfitSimulator() {
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [simulateQty, setSimulateQty] = useState('');
   const [sellRate, setSellRate] = useState('');
-  const [result, setResult] = useState<SimulationResult | null>(null);
+  const [sellCurrency, setSellCurrency] = useState<CurrencyUnit>('WL');
+  const [result, setResult] = useState<ReturnType<typeof simulateProfit> | null>(null);
 
   const availableItems = useMemo(() => getDistinctAvailableItems(), [getDistinctAvailableItems]);
 
@@ -38,6 +44,15 @@ export default function ProfitSimulator() {
     () => data.items.find(i => i.id === selectedItemId),
     [data.items, selectedItemId]
   );
+
+  // Check if all entries have the same currency
+  const entryCurrencies = useMemo(() => {
+    const currencies = new Set(selectedItemEntries.map(e => e.currencyUnit));
+    return Array.from(currencies);
+  }, [selectedItemEntries]);
+
+  const hasMixedCurrencies = entryCurrencies.length > 1;
+  const entryCurrency = entryCurrencies[0] || 'WL';
 
   const handleItemChange = (itemId: string) => {
     setSelectedItemId(itemId);
@@ -83,23 +98,6 @@ export default function ProfitSimulator() {
     });
   };
 
-  if (!data.meta.currencyUnit) {
-    return (
-      <div>
-        <PageHeader title="Profit Simulator" description="Simulate selling your inventory" />
-        <Alert className="animate-fade-in">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>You need to set a currency in Settings first.</span>
-            <Button asChild size="sm" className="ml-4">
-              <Link to="/settings">Go to Settings</Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
   if (availableItems.length === 0) {
     return (
       <div>
@@ -117,6 +115,9 @@ export default function ProfitSimulator() {
       </div>
     );
   }
+
+  // Check if currencies match for profit calculation
+  const sameCurrency = !hasMixedCurrencies && sellCurrency === entryCurrency;
 
   return (
     <div>
@@ -166,9 +167,15 @@ export default function ProfitSimulator() {
                   <div className="text-sm text-muted-foreground">
                     across {selectedItemEntries.length} inventory entries
                   </div>
+                  {hasMixedCurrencies && (
+                    <div className="mt-2 text-xs text-warning flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Mixed currencies: {entryCurrencies.join(', ')}
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="qty">Quantity to Simulate</Label>
                     <Input
@@ -184,7 +191,30 @@ export default function ProfitSimulator() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="rate">Sell Price per Unit ({data.meta.currencyUnit})</Label>
+                    <Label>Sell Currency</Label>
+                    <Select value={sellCurrency} onValueChange={(v) => setSellCurrency(v as CurrencyUnit)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencyOptions.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <span className={cn(
+                              'px-1.5 py-0.5 text-xs font-mono rounded mr-2',
+                              opt.value === 'WL' && 'currency-wl',
+                              opt.value === 'DL' && 'currency-dl',
+                              opt.value === 'BGL' && 'currency-bgl'
+                            )}>
+                              {opt.value}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="rate">Price per Unit ({sellCurrency})</Label>
                     <Input
                       id="rate"
                       type="number"
@@ -217,10 +247,12 @@ export default function ProfitSimulator() {
             <Card className="animate-scale-in">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  {result.projectedProfit >= 0 ? (
+                  {sameCurrency && result.projectedProfit >= 0 ? (
                     <TrendingUp className="w-5 h-5 text-profit" />
-                  ) : (
+                  ) : sameCurrency ? (
                     <TrendingDown className="w-5 h-5 text-loss" />
+                  ) : (
+                    <Calculator className="w-5 h-5 text-primary" />
                   )}
                   Simulation Results
                 </CardTitle>
@@ -235,7 +267,7 @@ export default function ProfitSimulator() {
                     <div className="text-sm text-muted-foreground">Projected Revenue</div>
                     <CurrencyDisplay
                       amount={result.projectedRevenue}
-                      currency={data.meta.currencyUnit}
+                      currency={sellCurrency}
                       size="lg"
                       className="text-foreground"
                     />
@@ -244,7 +276,7 @@ export default function ProfitSimulator() {
                     <div className="text-sm text-muted-foreground">Cost of Goods (FIFO)</div>
                     <CurrencyDisplay
                       amount={result.simulatedCogs}
-                      currency={data.meta.currencyUnit}
+                      currency={entryCurrency}
                       size="lg"
                       className="text-foreground"
                     />
@@ -252,59 +284,76 @@ export default function ProfitSimulator() {
                 </div>
 
                 {/* Profit */}
-                <div
-                  className={cn(
-                    'p-6 rounded-xl text-center',
-                    result.projectedProfit >= 0
-                      ? 'bg-[hsl(var(--profit)/0.1)] border border-[hsl(var(--profit)/0.3)]'
-                      : 'bg-[hsl(var(--loss)/0.1)] border border-[hsl(var(--loss)/0.3)]'
-                  )}
-                >
-                  <div className="text-sm font-medium text-muted-foreground mb-2">
-                    Projected Profit
+                {sameCurrency ? (
+                  <div
+                    className={cn(
+                      'p-6 rounded-xl text-center',
+                      result.projectedProfit >= 0
+                        ? 'bg-[hsl(var(--profit)/0.1)] border border-[hsl(var(--profit)/0.3)]'
+                        : 'bg-[hsl(var(--loss)/0.1)] border border-[hsl(var(--loss)/0.3)]'
+                    )}
+                  >
+                    <div className="text-sm font-medium text-muted-foreground mb-2">
+                      Projected Profit
+                    </div>
+                    <ProfitDisplay
+                      profit={result.projectedProfit}
+                      currency={sellCurrency}
+                      size="lg"
+                      className="text-3xl"
+                    />
+                    <div className="text-sm text-muted-foreground mt-2">
+                      {result.projectedProfit >= 0
+                        ? `${((result.projectedProfit / result.simulatedCogs) * 100).toFixed(1)}% margin`
+                        : 'Loss on this sale'}
+                    </div>
                   </div>
-                  <ProfitDisplay
-                    profit={result.projectedProfit}
-                    currency={data.meta.currencyUnit}
-                    size="lg"
-                    className="text-3xl"
-                  />
-                  <div className="text-sm text-muted-foreground mt-2">
-                    {result.projectedProfit >= 0
-                      ? `${((result.projectedProfit / result.simulatedCogs) * 100).toFixed(1)}% margin`
-                      : 'Loss on this sale'}
+                ) : (
+                  <div className="p-6 rounded-xl text-center bg-muted border border-border">
+                    <div className="text-sm font-medium text-muted-foreground mb-2">
+                      Projected Profit
+                    </div>
+                    <div className="text-lg text-muted-foreground">
+                      Cannot calculate directly
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-2">
+                      Revenue in {sellCurrency}, cost in {entryCurrency}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* FIFO Breakdown */}
                 <div>
                   <h4 className="text-sm font-medium mb-3">Cost Breakdown (FIFO)</h4>
                   <div className="space-y-2">
-                    {result.breakdown.map((item, index) => (
-                      <div
-                        key={item.entryId}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 text-sm animate-slide-in"
-                        style={{ animationDelay: `${index * 50}ms` }}
-                      >
-                        <div>
-                          <span className="text-muted-foreground">{formatDate(item.boughtAt)}</span>
-                          <span className="mx-2">•</span>
-                          <span className="font-mono">{item.qtyUsed}</span>
-                          <span className="text-muted-foreground"> @ </span>
+                    {result.breakdown.map((item, index) => {
+                      const entry = data.inventoryEntries.find(e => e.id === item.entryId);
+                      return (
+                        <div
+                          key={item.entryId}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50 text-sm animate-slide-in"
+                          style={{ animationDelay: `${index * 50}ms` }}
+                        >
+                          <div>
+                            <span className="text-muted-foreground">{formatDate(item.boughtAt)}</span>
+                            <span className="mx-2">•</span>
+                            <span className="font-mono">{item.qtyUsed}</span>
+                            <span className="text-muted-foreground"> @ </span>
+                            <CurrencyDisplay
+                              amount={item.unitCost}
+                              currency={entry?.currencyUnit || 'WL'}
+                              size="sm"
+                            />
+                          </div>
                           <CurrencyDisplay
-                            amount={item.unitCost}
-                            currency={data.meta.currencyUnit}
+                            amount={item.costContribution}
+                            currency={entry?.currencyUnit || 'WL'}
                             size="sm"
+                            className="font-medium"
                           />
                         </div>
-                        <CurrencyDisplay
-                          amount={item.costContribution}
-                          currency={data.meta.currencyUnit}
-                          size="sm"
-                          className="font-medium"
-                        />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </CardContent>

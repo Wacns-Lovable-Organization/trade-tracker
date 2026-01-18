@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useApp } from '@/contexts/AppContext';
 import {
   Package,
   ShoppingCart,
@@ -33,21 +32,12 @@ const navItems: NavItem[] = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { data } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Close mobile menu on route change
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
-
-  const currencyBadgeClass = cn(
-    'px-2 py-0.5 text-xs font-medium rounded-md border',
-    data.meta.currencyUnit === 'WL' && 'currency-wl',
-    data.meta.currencyUnit === 'DL' && 'currency-dl',
-    data.meta.currencyUnit === 'BGL' && 'currency-bgl',
-    !data.meta.currencyUnit && 'bg-muted text-muted-foreground border-border'
-  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -102,9 +92,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <h1 className="font-bold text-lg">GT Inventory</h1>
-              <span className={currencyBadgeClass}>
-                {data.meta.currencyUnit || 'No Currency'}
-              </span>
             </div>
           </Link>
         </div>

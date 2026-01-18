@@ -13,7 +13,7 @@ function createDefaultData(): AppData {
   return {
     meta: {
       version: 1,
-      currencyUnit: null,
+      currencyUnit: null, // Not used anymore, kept for backward compat
       createdAt: now,
       updatedAt: now,
     },
@@ -57,21 +57,6 @@ export function resetData(): AppData {
   const data = createDefaultData();
   saveData(data);
   return data;
-}
-
-// Currency helpers
-export function setCurrency(data: AppData, currency: CurrencyUnit): AppData {
-  if (data.inventoryEntries.length > 0) {
-    throw new Error('Cannot change currency after inventory entries exist');
-  }
-  return {
-    ...data,
-    meta: { ...data.meta, currencyUnit: currency },
-  };
-}
-
-export function isCurrencyLocked(data: AppData): boolean {
-  return data.inventoryEntries.length > 0;
 }
 
 // Category helpers
@@ -171,13 +156,10 @@ export function addInventoryEntry(
   snapshotCategoryId: string,
   quantityBought: number,
   unitCost: number,
+  currencyUnit: CurrencyUnit,
   notes: string = '',
   boughtAt?: string
 ): AppData {
-  if (!data.meta.currencyUnit) {
-    throw new Error('Currency must be set before adding inventory');
-  }
-  
   if (quantityBought <= 0 || !Number.isInteger(quantityBought)) {
     throw new Error('Quantity must be a positive integer');
   }
@@ -194,7 +176,7 @@ export function addInventoryEntry(
     quantityBought,
     unitCost,
     totalCost: quantityBought * unitCost,
-    currencyUnit: data.meta.currencyUnit,
+    currencyUnit,
     boughtAt: boughtAt || new Date().toISOString(),
     remainingQty: quantityBought,
     status: 'OPEN',
@@ -213,6 +195,7 @@ export function addSale(
   inventoryEntryId: string,
   quantitySold: number,
   amountGained: number,
+  currencyUnit: CurrencyUnit,
   notes: string = '',
   soldAt?: string
 ): AppData {
@@ -241,7 +224,7 @@ export function addSale(
     itemId: entry.itemId,
     quantitySold,
     amountGained,
-    currencyUnit: entry.currencyUnit,
+    currencyUnit,
     soldAt: soldAt || new Date().toISOString(),
     notes: notes.trim(),
   };
