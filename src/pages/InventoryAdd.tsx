@@ -10,9 +10,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { toast } from 'sonner';
-import { Package, AlertCircle, Calculator, ArrowRight } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Link } from 'react-router-dom';
+import { Package, Calculator, ArrowRight } from 'lucide-react';
+import type { CurrencyUnit } from '@/types/inventory';
+import { cn } from '@/lib/utils';
+
+const currencyOptions: { value: CurrencyUnit; label: string }[] = [
+  { value: 'WL', label: 'World Lock (WL)' },
+  { value: 'DL', label: 'Diamond Lock (DL)' },
+  { value: 'BGL', label: 'Blue Gem Lock (BGL)' },
+];
 
 export default function InventoryAdd() {
   const navigate = useNavigate();
@@ -23,6 +29,7 @@ export default function InventoryAdd() {
   const [categoryId, setCategoryId] = useState('cat_other');
   const [quantityBought, setQuantityBought] = useState('');
   const [unitCost, setUnitCost] = useState('');
+  const [currencyUnit, setCurrencyUnit] = useState<CurrencyUnit>('WL');
   const [notes, setNotes] = useState('');
   const [boughtAt, setBoughtAt] = useState(() => {
     const now = new Date();
@@ -55,11 +62,6 @@ export default function InventoryAdd() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!data.meta.currencyUnit) {
-      toast.error('Please set a currency in Settings first');
-      return;
-    }
 
     const qty = parseInt(quantityBought, 10);
     const cost = parseFloat(unitCost);
@@ -100,6 +102,7 @@ export default function InventoryAdd() {
         categoryId,
         qty,
         cost,
+        currencyUnit,
         notes,
         new Date(boughtAt).toISOString()
       );
@@ -110,23 +113,6 @@ export default function InventoryAdd() {
       toast.error(error instanceof Error ? error.message : 'Failed to add inventory');
     }
   };
-
-  if (!data.meta.currencyUnit) {
-    return (
-      <div>
-        <PageHeader title="Add Inventory" description="Record a new purchase" />
-        <Alert className="animate-fade-in">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>You need to set a currency before adding inventory.</span>
-            <Button asChild size="sm" className="ml-4">
-              <Link to="/settings">Go to Settings</Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -169,7 +155,7 @@ export default function InventoryAdd() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
+                  <Label>Category</Label>
                   <Select value={categoryId} onValueChange={setCategoryId}>
                     <SelectTrigger>
                       <SelectValue />
@@ -199,8 +185,32 @@ export default function InventoryAdd() {
                 </p>
               </div>
 
-              {/* Quantity and Cost */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* Currency, Quantity and Cost */}
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Currency *</Label>
+                  <Select value={currencyUnit} onValueChange={(v) => setCurrencyUnit(v as CurrencyUnit)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencyOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <span className={cn(
+                            'px-1.5 py-0.5 text-xs font-mono rounded mr-2',
+                            opt.value === 'WL' && 'currency-wl',
+                            opt.value === 'DL' && 'currency-dl',
+                            opt.value === 'BGL' && 'currency-bgl'
+                          )}>
+                            {opt.value}
+                          </span>
+                          {opt.label.split(' ')[0]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="quantity">Quantity Bought *</Label>
                   <Input
@@ -216,7 +226,7 @@ export default function InventoryAdd() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="unitCost">Unit Cost ({data.meta.currencyUnit}) *</Label>
+                  <Label htmlFor="unitCost">Unit Cost ({currencyUnit}) *</Label>
                   <Input
                     id="unitCost"
                     type="number"
@@ -278,7 +288,7 @@ export default function InventoryAdd() {
                     <span className="text-muted-foreground">Unit Cost</span>
                     <CurrencyDisplay
                       amount={parseFloat(unitCost) || 0}
-                      currency={data.meta.currencyUnit}
+                      currency={currencyUnit}
                       size="sm"
                     />
                   </div>
@@ -287,7 +297,7 @@ export default function InventoryAdd() {
                     <span className="font-medium">Total Cost</span>
                     <CurrencyDisplay
                       amount={totalCost}
-                      currency={data.meta.currencyUnit}
+                      currency={currencyUnit}
                       size="lg"
                     />
                   </div>

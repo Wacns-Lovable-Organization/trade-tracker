@@ -1,45 +1,16 @@
-import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Lock, AlertTriangle, Trash2, Coins } from 'lucide-react';
-import type { CurrencyUnit } from '@/types/inventory';
-import { cn } from '@/lib/utils';
-
-const currencyOptions: { value: CurrencyUnit; label: string; description: string; conversion: string }[] = [
-  { value: 'WL', label: 'World Lock', description: 'Base currency unit', conversion: '1 WL' },
-  { value: 'DL', label: 'Diamond Lock', description: '= 100 WL', conversion: '100 WL' },
-  { value: 'BGL', label: 'Blue Gem Lock', description: '= 100 DL = 10,000 WL', conversion: '10,000 WL' },
-];
+import { AlertTriangle, Trash2, Info } from 'lucide-react';
 
 export default function Settings() {
-  const { data, setCurrency, isCurrencyLocked, resetData } = useApp();
-  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyUnit | null>(
-    data.meta.currencyUnit
-  );
-  const locked = isCurrencyLocked();
-
-  const handleSaveCurrency = () => {
-    if (!selectedCurrency) {
-      toast.error('Please select a currency');
-      return;
-    }
-    try {
-      setCurrency(selectedCurrency);
-      toast.success(`Currency set to ${selectedCurrency}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to set currency');
-    }
-  };
+  const { data, resetData } = useApp();
 
   const handleReset = () => {
     resetData();
-    setSelectedCurrency(null);
     toast.success('All data has been reset');
   };
 
@@ -51,74 +22,36 @@ export default function Settings() {
       />
 
       <div className="space-y-6">
-        {/* Currency Selection */}
+        {/* Info Card */}
         <Card className="animate-fade-in">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Coins className="w-5 h-5 text-primary" />
-              <CardTitle>Currency Unit</CardTitle>
-              {locked && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-warning/15 text-warning border border-warning/30">
-                  <Lock className="w-3 h-3" />
-                  Locked
-                </span>
-              )}
+              <Info className="w-5 h-5 text-primary" />
+              <CardTitle>Currency Info</CardTitle>
             </div>
             <CardDescription>
-              {locked
-                ? 'Currency is locked after your first inventory entry. Reset data to change.'
-                : 'Select the currency unit for all transactions. This will be locked after your first inventory entry.'}
+              Each inventory entry and sale can use its own currency (WL, DL, or BGL).
+              Select the currency when adding entries or recording sales.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <RadioGroup
-              value={selectedCurrency || ''}
-              onValueChange={(value) => setSelectedCurrency(value as CurrencyUnit)}
-              disabled={locked}
-              className="grid gap-3"
-            >
-              {currencyOptions.map((option) => (
-                <Label
-                  key={option.value}
-                  htmlFor={option.value}
-                  className={cn(
-                    'flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-default',
-                    selectedCurrency === option.value
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50',
-                    locked && 'opacity-60 cursor-not-allowed'
-                  )}
-                >
-                  <RadioGroupItem value={option.value} id={option.value} />
-                  <div className="flex-1">
-                    <div className="font-medium">{option.label}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {option.description}
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      'px-2.5 py-1 text-sm font-mono rounded-md border',
-                      option.value === 'WL' && 'currency-wl',
-                      option.value === 'DL' && 'currency-dl',
-                      option.value === 'BGL' && 'currency-bgl'
-                    )}
-                  >
-                    {option.value}
-                  </span>
-                </Label>
-              ))}
-            </RadioGroup>
-
-            {!locked && (
-              <Button
-                onClick={handleSaveCurrency}
-                className="mt-4"
-                disabled={!selectedCurrency || selectedCurrency === data.meta.currencyUnit}
-              >
-                Save Currency
-              </Button>
-            )}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="p-4 rounded-lg border border-border">
+                <span className="px-2 py-1 text-sm font-mono rounded currency-wl">WL</span>
+                <div className="mt-2 font-medium">World Lock</div>
+                <div className="text-sm text-muted-foreground">Base currency unit</div>
+              </div>
+              <div className="p-4 rounded-lg border border-border">
+                <span className="px-2 py-1 text-sm font-mono rounded currency-dl">DL</span>
+                <div className="mt-2 font-medium">Diamond Lock</div>
+                <div className="text-sm text-muted-foreground">= 100 WL</div>
+              </div>
+              <div className="p-4 rounded-lg border border-border">
+                <span className="px-2 py-1 text-sm font-mono rounded currency-bgl">BGL</span>
+                <div className="mt-2 font-medium">Blue Gem Lock</div>
+                <div className="text-sm text-muted-foreground">= 100 DL = 10,000 WL</div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

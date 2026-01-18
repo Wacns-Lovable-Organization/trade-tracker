@@ -6,10 +6,6 @@ interface AppContextType {
   data: AppData;
   isLoading: boolean;
   
-  // Currency
-  setCurrency: (currency: CurrencyUnit) => void;
-  isCurrencyLocked: () => boolean;
-  
   // Categories
   addCategory: (name: string) => void;
   renameCategory: (id: string, newName: string) => void;
@@ -26,6 +22,7 @@ interface AppContextType {
     snapshotCategoryId: string,
     quantityBought: number,
     unitCost: number,
+    currencyUnit: CurrencyUnit,
     notes?: string,
     boughtAt?: string
   ) => void;
@@ -35,6 +32,7 @@ interface AppContextType {
     inventoryEntryId: string,
     quantitySold: number,
     amountGained: number,
+    currencyUnit: CurrencyUnit,
     notes?: string,
     soldAt?: string
   ) => void;
@@ -66,14 +64,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setData(newData);
   }, []);
   
-  const setCurrency = useCallback((currency: CurrencyUnit) => {
-    updateData(storage.setCurrency(data, currency));
-  }, [data, updateData]);
-  
-  const isCurrencyLocked = useCallback(() => {
-    return storage.isCurrencyLocked(data);
-  }, [data]);
-  
   const addCategory = useCallback((name: string) => {
     updateData(storage.addCategory(data, name));
   }, [data, updateData]);
@@ -102,6 +92,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     snapshotCategoryId: string,
     quantityBought: number,
     unitCost: number,
+    currencyUnit: CurrencyUnit,
     notes?: string,
     boughtAt?: string
   ) => {
@@ -112,6 +103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       snapshotCategoryId,
       quantityBought,
       unitCost,
+      currencyUnit,
       notes,
       boughtAt
     ));
@@ -121,10 +113,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     inventoryEntryId: string,
     quantitySold: number,
     amountGained: number,
+    currencyUnit: CurrencyUnit,
     notes?: string,
     soldAt?: string
   ) => {
-    updateData(storage.addSale(data, inventoryEntryId, quantitySold, amountGained, notes, soldAt));
+    updateData(storage.addSale(data, inventoryEntryId, quantitySold, amountGained, currencyUnit, notes, soldAt));
   }, [data, updateData]);
   
   const getDistinctAvailableItems = useCallback(() => {
@@ -162,8 +155,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         data,
         isLoading,
-        setCurrency,
-        isCurrencyLocked,
         addCategory,
         renameCategory,
         deleteCategory,

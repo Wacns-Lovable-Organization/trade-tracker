@@ -11,43 +11,47 @@ import {
   TrendingUp,
   Coins,
   BarChart3,
-  AlertCircle,
   ArrowRight,
   ShoppingCart,
 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import type { CurrencyUnit } from '@/types/inventory';
 
 export default function Dashboard() {
   const { data, calculateSaleProfit } = useApp();
 
   const stats = useMemo(() => {
-    const totalInventoryValue = data.inventoryEntries.reduce(
-      (sum, e) => sum + e.remainingQty * e.unitCost,
-      0
-    );
+    // Group inventory by currency
+    const inventoryByCurrency = new Map<CurrencyUnit, number>();
+    data.inventoryEntries.forEach(e => {
+      const value = e.remainingQty * e.unitCost;
+      inventoryByCurrency.set(e.currencyUnit, (inventoryByCurrency.get(e.currencyUnit) || 0) + value);
+    });
 
-    const totalRevenue = data.sales.reduce((sum, s) => sum + s.amountGained, 0);
-    const totalCogs = data.sales.reduce((sum, s) => {
-      const entry = data.inventoryEntries.find(e => e.id === s.inventoryEntryId);
-      return sum + (entry ? s.quantitySold * entry.unitCost : 0);
-    }, 0);
-    const totalProfit = totalRevenue - totalCogs;
+    // Group sales by currency
+    const revenueByCurrency = new Map<CurrencyUnit, number>();
+    data.sales.forEach(s => {
+      revenueByCurrency.set(s.currencyUnit, (revenueByCurrency.get(s.currencyUnit) || 0) + s.amountGained);
+    });
 
     const openEntries = data.inventoryEntries.filter(e => e.status === 'OPEN').length;
     const closedEntries = data.inventoryEntries.filter(e => e.status === 'CLOSED').length;
 
-    // Top items by profit
-    const profitByItem = new Map<string, { name: string; profit: number; sales: number }>();
+    // Top items by profit (group by same currency)
+    const profitByItem = new Map<string, { name: string; profit: number; sales: number; currency: CurrencyUnit }>();
     data.sales.forEach(sale => {
       const profit = calculateSaleProfit(sale);
       const entry = data.inventoryEntries.find(e => e.id === sale.inventoryEntryId);
+      if (!entry || entry.currencyUnit !== sale.currencyUnit) return; // Skip mixed currency
+      
       const name = entry?.snapshotName || 'Unknown';
-      const existing = profitByItem.get(sale.itemId) || { name, profit: 0, sales: 0 };
-      profitByItem.set(sale.itemId, {
+      const key = `${sale.itemId}_${sale.currencyUnit}`;
+      const existing = profitByItem.get(key) || { name, profit: 0, sales: 0, currency: sale.currencyUnit };
+      profitByItem.set(key, {
         name,
         profit: existing.profit + profit,
         sales: existing.sales + sale.quantitySold,
+        currency: sale.currencyUnit,
       });
     });
     const topItems = Array.from(profitByItem.entries())
@@ -61,10 +65,8 @@ export default function Dashboard() {
       .slice(0, 5);
 
     return {
-      totalInventoryValue,
-      totalRevenue,
-      totalCogs,
-      totalProfit,
+      inventoryByCurrency: Array.from(inventoryByCurrency.entries()),
+      revenueByCurrency: Array.from(revenueByCurrency.entries()),
       openEntries,
       closedEntries,
       topItems,
@@ -80,30 +82,23 @@ export default function Dashboard() {
     });
   };
 
-  if (!data.meta.currencyUnit) {
+  const hasData = data.inventoryEntries.length > 0 || data.sales.length > 0;
+
+  if (!hasData) {
     return (
       <div>
         <PageHeader title="Dashboard" description="Overview of your inventory and profits" />
-        <Alert className="animate-fade-in">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>Welcome! Start by selecting your currency in Settings.</span>
-            <Button asChild size="sm" className="ml-4">
-              <Link to="/settings">Go to Settings</Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           <Card className="animate-fade-in hover-lift" style={{ animationDelay: '100ms' }}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-lg bg-primary/10">
-                  <Coins className="w-6 h-6 text-primary" />
+                  <Package className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">1. Set Currency</h3>
-                  <p className="text-sm text-muted-foreground">Choose WL, DL, or BGL</p>
+                  <h3 className="font-semibold">1. Add Inventory</h3>
+                  <p className="text-sm text-muted-foreground">Log your purchases</p>
                 </div>
               </div>
             </CardContent>
@@ -112,11 +107,11 @@ export default function Dashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-lg bg-primary/10">
-                  <Package className="w-6 h-6 text-primary" />
+                  <Coins className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">2. Add Inventory</h3>
-                  <p className="text-sm text-muted-foreground">Log your purchases</p>
+                  <h3 className="font-semibold">2. Record Sales</h3>
+                  <p className="text-sm text-muted-foreground">Track what you sell</p>
                 </div>
               </div>
             </CardContent>
@@ -129,11 +124,20 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold">3. Track Profits</h3>
-                  <p className="text-sm text-muted-foreground">Record sales & analyze</p>
+                  <p className="text-sm text-muted-foreground">Analyze your gains</p>
                 </div>
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mt-8 text-center">
+          <Button asChild size="lg" className="gap-2">
+            <Link to="/inventory/add">
+              <Package className="w-5 h-5" />
+              Add Your First Inventory
+            </Link>
+          </Button>
         </div>
       </div>
     );
@@ -158,10 +162,13 @@ export default function Dashboard() {
         <StatCard
           title="Inventory Value"
           value={
-            <CurrencyDisplay
-              amount={stats.totalInventoryValue}
-              currency={data.meta.currencyUnit}
-            />
+            stats.inventoryByCurrency.length > 0 ? (
+              <div className="space-y-1">
+                {stats.inventoryByCurrency.map(([currency, value]) => (
+                  <CurrencyDisplay key={currency} amount={value} currency={currency} />
+                ))}
+              </div>
+            ) : '—'
           }
           icon={Package}
           subtitle={`${stats.openEntries} open entries`}
@@ -170,10 +177,13 @@ export default function Dashboard() {
         <StatCard
           title="Total Revenue"
           value={
-            <CurrencyDisplay
-              amount={stats.totalRevenue}
-              currency={data.meta.currencyUnit}
-            />
+            stats.revenueByCurrency.length > 0 ? (
+              <div className="space-y-1">
+                {stats.revenueByCurrency.map(([currency, value]) => (
+                  <CurrencyDisplay key={currency} amount={value} currency={currency} />
+                ))}
+              </div>
+            ) : '—'
           }
           icon={Coins}
           subtitle={`${data.sales.length} sales`}
@@ -181,17 +191,10 @@ export default function Dashboard() {
           style={{ animationDelay: '50ms' }}
         />
         <StatCard
-          title="Total Profit"
-          value={
-            <ProfitDisplay profit={stats.totalProfit} currency={data.meta.currencyUnit} />
-          }
+          title="Sales Recorded"
+          value={data.sales.length}
           icon={TrendingUp}
-          trend={stats.totalProfit >= 0 ? 'up' : 'down'}
-          subtitle={
-            stats.totalRevenue > 0
-              ? `${((stats.totalProfit / stats.totalCogs) * 100).toFixed(1)}% margin`
-              : 'No sales yet'
-          }
+          subtitle={stats.closedEntries > 0 ? `${stats.closedEntries} fully sold` : 'Keep selling!'}
           className="animate-fade-in"
           style={{ animationDelay: '100ms' }}
         />
@@ -210,7 +213,7 @@ export default function Dashboard() {
         <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
           <CardHeader>
             <CardTitle className="text-lg">Top Items by Profit</CardTitle>
-            <CardDescription>Your most profitable items</CardDescription>
+            <CardDescription>Your most profitable items (same currency only)</CardDescription>
           </CardHeader>
           <CardContent>
             {stats.topItems.length === 0 ? (
@@ -249,7 +252,7 @@ export default function Dashboard() {
                     </div>
                     <ProfitDisplay
                       profit={item.profit}
-                      currency={data.meta.currencyUnit}
+                      currency={item.currency}
                       size="sm"
                     />
                   </div>
@@ -289,6 +292,7 @@ export default function Dashboard() {
                     e => e.id === sale.inventoryEntryId
                   );
                   const profit = calculateSaleProfit(sale);
+                  const sameCurrency = entry?.currencyUnit === sale.currencyUnit;
                   return (
                     <div
                       key={sale.id}
@@ -308,12 +312,14 @@ export default function Dashboard() {
                           size="sm"
                           className="font-medium"
                         />
-                        <ProfitDisplay
-                          profit={profit}
-                          currency={sale.currencyUnit}
-                          size="sm"
-                          className="block text-xs"
-                        />
+                        {sameCurrency && (
+                          <ProfitDisplay
+                            profit={profit}
+                            currency={sale.currencyUnit}
+                            size="sm"
+                            className="block text-xs"
+                          />
+                        )}
                       </div>
                     </div>
                   );
