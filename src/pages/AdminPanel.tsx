@@ -70,7 +70,8 @@ import {
   LayoutDashboard,
   Smartphone,
   ShieldOff,
-  Settings
+  Settings,
+  Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -83,6 +84,7 @@ import { FeatureFlagsTab } from '@/components/admin/FeatureFlagsTab';
 import { PageAnalyticsTab } from '@/components/admin/PageAnalyticsTab';
 import { AuthSettingsTab } from '@/components/admin/AuthSettingsTab';
 import { UserFeatureOverridesDialog } from '@/components/admin/UserFeatureOverridesDialog';
+import { NotificationSender } from '@/components/admin/NotificationSender';
 
 interface UserProfile {
   id: string;
@@ -647,6 +649,12 @@ export default function AdminPanel() {
               Email Allowlist
             </TabsTrigger>
           )}
+          {canManageUsers && (
+            <TabsTrigger value="notifications" className="gap-2">
+              <Bell className="w-4 h-4" />
+              Notifications
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Dashboard Tab */}
@@ -1174,6 +1182,13 @@ export default function AdminPanel() {
         {currentUserRole === 'owner' && (
           <TabsContent value="auth-settings">
             <AuthSettingsTab />
+          </TabsContent>
+        )}
+
+        {/* Notifications Tab */}
+        {canManageUsers && (
+          <TabsContent value="notifications">
+            <NotificationSender />
           </TabsContent>
         )}
       </Tabs>

@@ -37,6 +37,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LowStockAlert } from '@/components/LowStockAlert';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { NotificationPopup } from '@/components/notifications/NotificationPopup';
 
 interface NavItem {
   labelKey: string;
@@ -112,6 +114,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="font-semibold">GT Inventory</span>
           </Link>
           <div className="flex items-center gap-1">
+            <NotificationBell />
             <LowStockAlert />
             <ThemeToggle />
             <DropdownMenu>
@@ -267,6 +270,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      
+      {/* Notification Popup */}
+      <NotificationPopup />
     </div>
   );
 }

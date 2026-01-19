@@ -9,13 +9,18 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Loader2, Mail, Shield, AlertTriangle, CheckCircle2, Palette, Clock } from 'lucide-react';
+import { Loader2, Mail, Shield, AlertTriangle, CheckCircle2, Palette, Clock, Send } from 'lucide-react';
 import { useAppSettings, AuthMethodSettings, EmailTemplateSettings, RateLimitSettings } from '@/hooks/useAppSettings';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { EmailPreview } from './EmailPreview';
 
 export function AuthSettingsTab() {
+  const { user } = useAuth();
   const { settings, isLoading, updateAuthMethod, updateEmailTemplate, updateRateLimit } = useAppSettings();
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [testEmailType, setTestEmailType] = useState<'signup' | 'password_reset'>('signup');
   const [pendingAuthSettings, setPendingAuthSettings] = useState<AuthMethodSettings | null>(null);
   const [pendingEmailTemplate, setPendingEmailTemplate] = useState<EmailTemplateSettings | null>(null);
   const [pendingRateLimit, setPendingRateLimit] = useState<RateLimitSettings | null>(null);
@@ -83,6 +88,35 @@ export function AuthSettingsTab() {
     } else {
       toast.success('Rate limit settings updated!');
       setPendingRateLimit(null);
+    }
+  };
+
+  const handleSendTestEmail = async (type: 'signup' | 'password_reset') => {
+    if (!user?.email) {
+      toast.error('No email address found for your account');
+      return;
+    }
+
+    setIsSendingTestEmail(true);
+    setTestEmailType(type);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('send-test-email', {
+        body: {
+          email: user.email,
+          type,
+          template: currentEmailTemplate,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success(`Test ${type === 'signup' ? 'signup' : 'password reset'} email sent to ${user.email}`);
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      toast.error('Failed to send test email. Make sure Resend is configured correctly.');
+    } finally {
+      setIsSendingTestEmail(false);
     }
   };
 
@@ -390,6 +424,63 @@ export function AuthSettingsTab() {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Email Preview Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Send Test Email
+          </CardTitle>
+          <CardDescription>
+            Send a real preview email to your address before going live
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <Mail className="h-4 w-4" />
+            <AlertTitle>Test emails will be sent to:</AlertTitle>
+            <AlertDescription className="font-mono">{user?.email || 'Not logged in'}</AlertDescription>
+          </Alert>
+          
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              onClick={() => handleSendTestEmail('signup')}
+              disabled={isSendingTestEmail}
+            >
+              {isSendingTestEmail && testEmailType === 'signup' ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send Signup Email
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleSendTestEmail('password_reset')}
+              disabled={isSendingTestEmail}
+            >
+              {isSendingTestEmail && testEmailType === 'password_reset' ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send Reset Email
+                </>
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
