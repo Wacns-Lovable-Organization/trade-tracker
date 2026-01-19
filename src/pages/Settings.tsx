@@ -2,6 +2,7 @@ import { useApp } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Info, Cloud } from 'lucide-react';
+import { CsvImportExport } from '@/components/settings/CsvImportExport';
 
 export default function Settings() {
   const { data } = useApp();
@@ -86,6 +87,9 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* CSV Import/Export */}
+        <CsvImportExport />
       </div>
     </div>
   );
