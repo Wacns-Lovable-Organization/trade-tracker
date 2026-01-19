@@ -110,31 +110,11 @@ export default function Sales() {
     setHistoryOpen(true);
   };
 
-  // Calculate profit preview
+  // Calculate profit preview using weighted average cost
   const qty = parseInt(quantitySold, 10) || 0;
   const amount = parseFloat(amountGained) || 0;
   
-  // Estimate cost using available info (FIFO simulation)
-  const estimatedCost = useMemo(() => {
-    if (!selectedItemId || qty <= 0) return 0;
-    
-    const entries = data.inventoryEntries
-      .filter(e => e.itemId === selectedItemId && e.status === 'OPEN' && e.remainingQty > 0)
-      .sort((a, b) => new Date(a.boughtAt).getTime() - new Date(b.boughtAt).getTime());
-    
-    let remaining = qty;
-    let cost = 0;
-    
-    for (const entry of entries) {
-      if (remaining <= 0) break;
-      const take = Math.min(remaining, entry.remainingQty);
-      cost += take * entry.unitCost;
-      remaining -= take;
-    }
-    
-    return cost;
-  }, [selectedItemId, qty, data.inventoryEntries]);
-
+  const estimatedCost = selectedItemInfo ? selectedItemInfo.avgCost * qty : 0;
   const sameCurrency = selectedItemInfo?.currency === currencyUnit;
   const profit = sameCurrency ? amount - estimatedCost : null;
 

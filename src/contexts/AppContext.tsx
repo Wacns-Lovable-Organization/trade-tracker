@@ -151,7 +151,7 @@ interface AppContextType {
   // Utilities
   getDistinctAvailableItems: () => Item[];
   getAvailableEntriesForItem: (itemId: string) => InventoryEntry[];
-  getTotalAvailableForItem: (itemId: string) => { quantity: number; totalCost: number; currency: CurrencyUnit | null };
+  getTotalAvailableForItem: (itemId: string) => { quantity: number; totalCost: number; avgCost: number; currency: CurrencyUnit | null };
   simulateProfit: (itemId: string, simulateQty: number, sellUnitPrice: number) => SimulationResult;
   calculateSaleProfit: (sale: Sale) => number;
   
@@ -455,11 +455,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => new Date(a.boughtAt).getTime() - new Date(b.boughtAt).getTime());
   }, [data.inventoryEntries]);
 
-  // Get total available quantity and cost for an item
+  // Get total available quantity and cost for an item (weighted average)
   const getTotalAvailableForItem = useCallback((itemId: string) => {
     const entries = inventoryEntries
-      .filter(e => e.item_id === itemId && e.status === 'OPEN' && e.remaining_qty > 0)
-      .sort((a, b) => new Date(a.bought_at).getTime() - new Date(b.bought_at).getTime());
+      .filter(e => e.item_id === itemId && e.status === 'OPEN' && e.remaining_qty > 0);
     
     let totalQty = 0;
     let totalCost = 0;
@@ -471,10 +470,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!currency) currency = entry.currency_unit as CurrencyUnit;
     }
 
-    return { quantity: totalQty, totalCost, currency };
+    const avgCost = totalQty > 0 ? totalCost / totalQty : 0;
+
+    return { quantity: totalQty, totalCost, avgCost, currency };
   }, [inventoryEntries]);
 
-  // Record sale using FIFO (item-level, auto-deducts from oldest entries)
+  // Record sale using weighted average cost (simpler logic)
   const addSaleByItem = useCallback(async (
     itemId: string,
     quantitySold: number,
@@ -485,20 +486,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!user) throw new Error('Not authenticated');
     
-    // Get available entries sorted by FIFO (oldest first)
+    // Get all available entries for this item
     const availableEntries = inventoryEntries
       .filter(e => e.item_id === itemId && e.status === 'OPEN' && e.remaining_qty > 0)
       .sort((a, b) => new Date(a.bought_at).getTime() - new Date(b.bought_at).getTime());
     
     const totalAvailable = availableEntries.reduce((sum, e) => sum + e.remaining_qty, 0);
+    const totalCost = availableEntries.reduce((sum, e) => sum + e.remaining_qty * Number(e.unit_cost), 0);
     
     if (quantitySold > totalAvailable) {
       throw new Error(`Cannot sell more than ${totalAvailable} available`);
     }
     
-    // Calculate FIFO breakdown
+    // Calculate using weighted average cost
+    const avgCost = totalAvailable > 0 ? totalCost / totalAvailable : 0;
+    const costOfGoodsSold = avgCost * quantitySold;
+    const profit = amountGained - costOfGoodsSold;
+    
+    // Deduct quantity from entries (oldest first, but cost is averaged)
     let qtyRemaining = quantitySold;
-    let totalCost = 0;
     const costBreakdown: CostBreakdownItem[] = [];
     const entryUpdates: { id: string; newQty: number }[] = [];
     
@@ -506,11 +512,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (qtyRemaining <= 0) break;
       
       const qtyFromEntry = Math.min(qtyRemaining, entry.remaining_qty);
-      const costFromEntry = qtyFromEntry * Number(entry.unit_cost);
       
       costBreakdown.push({
         entryId: entry.id,
-        unitCost: Number(entry.unit_cost),
+        unitCost: avgCost, // Use average cost, not individual entry cost
         qtyUsed: qtyFromEntry,
       });
       
@@ -519,11 +524,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         newQty: entry.remaining_qty - qtyFromEntry,
       });
       
-      totalCost += costFromEntry;
       qtyRemaining -= qtyFromEntry;
     }
-    
-    const profit = amountGained - totalCost;
     
     // Update all affected inventory entries
     for (const update of entryUpdates) {
@@ -546,7 +548,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         sale_price: amountGained,
         currency_unit: currencyUnit,
         cost_breakdown: costBreakdown as any,
-        total_cost: totalCost,
+        total_cost: costOfGoodsSold,
         profit,
         sold_at: soldAt || new Date().toISOString(),
         notes: notes || null,
