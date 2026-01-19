@@ -19,6 +19,9 @@ import Sales from "./pages/Sales";
 import ProfitSimulator from "./pages/ProfitSimulator";
 import AdminPanel from "./pages/AdminPanel";
 import Suppliers from "./pages/Suppliers";
+import Expenses from "./pages/Expenses";
+import Reports from "./pages/Reports";
+import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
@@ -54,6 +57,9 @@ const App = () => (
                             <Route path="/simulate" element={<ProfitSimulator />} />
                             <Route path="/admin" element={<AdminPanel />} />
                             <Route path="/suppliers" element={<Suppliers />} />
+                            <Route path="/expenses" element={<Expenses />} />
+                            <Route path="/reports" element={<Reports />} />
+                            <Route path="/profile" element={<Profile />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
                         </AppLayout>

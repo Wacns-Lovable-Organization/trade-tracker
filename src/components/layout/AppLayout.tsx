@@ -19,6 +19,9 @@ import {
   Cloud,
   Shield,
   Truck,
+  Receipt,
+  FileText,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -48,6 +51,8 @@ const navItems: NavItem[] = [
   { label: 'Profit Simulator', href: '/simulate', icon: Calculator },
   { label: 'Categories', href: '/categories', icon: Tags },
   { label: 'Suppliers', href: '/suppliers', icon: Truck },
+  { label: 'Expenses', href: '/expenses', icon: Receipt },
+  { label: 'Reports', href: '/reports', icon: FileText },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Admin Panel', href: '/admin', icon: Shield, adminOnly: true },
 ];
@@ -114,6 +119,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">
+                    <User className="mr-2 h-4 w-4" />
+                    Edit Profile
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign out
@@ -221,6 +232,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  Edit Profile
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign out

@@ -125,6 +125,51 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          currency_unit: string
+          description: string
+          expense_date: string
+          id: string
+          is_recurring: boolean
+          notes: string | null
+          recurring_interval: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          currency_unit?: string
+          description: string
+          expense_date?: string
+          id?: string
+          is_recurring?: boolean
+          notes?: string | null
+          recurring_interval?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          currency_unit?: string
+          description?: string
+          expense_date?: string
+          id?: string
+          is_recurring?: boolean
+          notes?: string | null
+          recurring_interval?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       inventory_entries: {
         Row: {
           bought_at: string
@@ -328,6 +373,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sales_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_forecasts: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          forecast_date: string
+          id: string
+          item_id: string | null
+          model_version: string | null
+          predicted_quantity: number
+          user_id: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          forecast_date: string
+          id?: string
+          item_id?: string | null
+          model_version?: string | null
+          predicted_quantity: number
+          user_id: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          forecast_date?: string
+          id?: string
+          item_id?: string | null
+          model_version?: string | null
+          predicted_quantity?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_forecasts_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
