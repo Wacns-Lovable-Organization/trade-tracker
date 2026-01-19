@@ -321,6 +321,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_anonymous: boolean
+          notification_type: string
+          sender_display_name: string | null
+          sender_id: string | null
+          target_type: string
+          title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          notification_type?: string
+          sender_display_name?: string | null
+          sender_id?: string | null
+          target_type?: string
+          title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          notification_type?: string
+          sender_display_name?: string | null
+          sender_id?: string | null
+          target_type?: string
+          title?: string
+        }
+        Relationships: []
+      }
       otp_rate_limits: {
         Row: {
           attempt_count: number
@@ -691,6 +727,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_popup_shown: boolean
+          is_read: boolean
+          notification_id: string
+          popup_shown_at: string | null
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_popup_shown?: boolean
+          is_read?: boolean
+          notification_id: string
+          popup_shown_at?: string | null
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_popup_shown?: boolean
+          is_read?: boolean
+          notification_id?: string
+          popup_shown_at?: string | null
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           assigned_at: string
@@ -825,6 +902,18 @@ export type Database = {
           sales_count: number
         }[]
       }
+      get_latest_unshown_popup: {
+        Args: { _user_id: string }
+        Returns: {
+          content: string
+          created_at: string
+          id: string
+          is_anonymous: boolean
+          notification_id: string
+          sender_display_name: string
+          title: string
+        }[]
+      }
       get_page_analytics_summary: {
         Args: { _days?: number }
         Returns: {
@@ -834,6 +923,10 @@ export type Database = {
           unique_users: number
           view_count: number
         }[]
+      }
+      get_unread_notification_count: {
+        Args: { _user_id: string }
+        Returns: number
       }
       get_user_role: {
         Args: { _user_id: string }
@@ -850,6 +943,10 @@ export type Database = {
       is_blacklisted: {
         Args: { _device_id?: string; _email: string; _ip?: string }
         Returns: boolean
+      }
+      mark_popup_shown: {
+        Args: { _user_notification_id: string }
+        Returns: undefined
       }
       set_device_offline: { Args: { _device_id: string }; Returns: undefined }
       upsert_user_device: {

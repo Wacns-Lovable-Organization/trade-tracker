@@ -1,1 +1,16 @@
 project_id = "zviyodwzhpucwguptekp"
+
+[functions.notify-admin-action]
+verify_jwt = true
+
+[functions.sales-forecast]
+verify_jwt = true
+
+[functions.send-otp]
+verify_jwt = false
+
+[functions.send-test-email]
+verify_jwt = false
+
+[functions.send-notification-email]
+verify_jwt = false
