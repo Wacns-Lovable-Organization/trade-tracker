@@ -1,18 +1,117 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { AppData, CurrencyUnit, Item, InventoryEntry } from '@/types/inventory';
-import * as storage from '@/lib/storage';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import type { CurrencyUnit } from '@/types/inventory';
+
+// Types matching the database schema
+export interface DbCategory {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface DbItem {
+  id: string;
+  user_id: string;
+  name: string;
+  category_id: string | null;
+  created_at: string;
+}
+
+export interface DbInventoryEntry {
+  id: string;
+  user_id: string;
+  item_id: string;
+  snapshot_name: string;
+  snapshot_category_id: string | null;
+  quantity_bought: number;
+  remaining_qty: number;
+  unit_cost: number;
+  currency_unit: string;
+  notes: string | null;
+  bought_at: string;
+  status: string;
+  created_at: string;
+}
+
+export interface CostBreakdownItem {
+  entryId: string;
+  unitCost: number;
+  qtyUsed: number;
+}
+
+export interface DbSale {
+  id: string;
+  user_id: string;
+  item_id: string;
+  quantity_sold: number;
+  sale_price: number;
+  currency_unit: string;
+  cost_breakdown: CostBreakdownItem[];
+  total_cost: number;
+  profit: number;
+  sold_at: string;
+  notes: string | null;
+  created_at: string;
+}
+
+// Mapped types for UI compatibility
+export interface Category {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  defaultCategoryId: string;
+  createdAt: string;
+}
+
+export interface InventoryEntry {
+  id: string;
+  itemId: string;
+  snapshotName: string;
+  snapshotCategoryId: string;
+  quantityBought: number;
+  unitCost: number;
+  totalCost: number;
+  currencyUnit: CurrencyUnit;
+  boughtAt: string;
+  remainingQty: number;
+  status: 'OPEN' | 'CLOSED';
+  notes: string;
+}
+
+export interface Sale {
+  id: string;
+  inventoryEntryId: string;
+  itemId: string;
+  quantitySold: number;
+  amountGained: number;
+  currencyUnit: CurrencyUnit;
+  soldAt: string;
+  notes: string;
+}
 
 interface AppContextType {
-  data: AppData;
+  data: {
+    categories: Category[];
+    items: Item[];
+    inventoryEntries: InventoryEntry[];
+    sales: Sale[];
+  };
   isLoading: boolean;
   
   // Categories
-  addCategory: (name: string) => void;
-  renameCategory: (id: string, newName: string) => void;
-  deleteCategory: (id: string) => void;
+  addCategory: (name: string) => Promise<void>;
+  renameCategory: (id: string, newName: string) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
   
   // Items
-  addItem: (name: string, categoryId: string) => Item;
+  addItem: (name: string, categoryId: string) => Promise<Item>;
   getItemById: (id: string) => Item | undefined;
   
   // Inventory
@@ -25,9 +124,8 @@ interface AppContextType {
     currencyUnit: CurrencyUnit,
     notes?: string,
     boughtAt?: string
-  ) => void;
+  ) => Promise<void>;
   
-  // Combined: add item + inventory entry atomically
   addItemWithInventoryEntry: (
     name: string,
     categoryId: string,
@@ -38,7 +136,7 @@ interface AppContextType {
     currencyUnit: CurrencyUnit,
     notes?: string,
     boughtAt?: string
-  ) => Item;
+  ) => Promise<Item>;
   
   // Sales
   addSale: (
@@ -48,59 +146,257 @@ interface AppContextType {
     currencyUnit: CurrencyUnit,
     notes?: string,
     soldAt?: string
-  ) => void;
+  ) => Promise<void>;
   
   // Utilities
   getDistinctAvailableItems: () => Item[];
   getAvailableEntriesForItem: (itemId: string) => InventoryEntry[];
-  simulateProfit: (itemId: string, simulateQty: number, sellUnitPrice: number) => ReturnType<typeof storage.simulateProfit>;
-  calculateSaleProfit: (sale: Parameters<typeof storage.calculateSaleProfit>[1]) => number;
+  simulateProfit: (itemId: string, simulateQty: number, sellUnitPrice: number) => SimulationResult;
+  calculateSaleProfit: (sale: Sale) => number;
   
   // Data management
-  resetData: () => void;
-  refreshData: () => void;
+  refreshData: () => Promise<void>;
+}
+
+interface SimulationResult {
+  remainingQty: number;
+  simulateQty: number;
+  sellUnitPrice: number;
+  projectedRevenue: number;
+  simulatedCogs: number;
+  projectedProfit: number;
+  breakdown: {
+    entryId: string;
+    boughtAt: string;
+    unitCost: number;
+    qtyUsed: number;
+    costContribution: number;
+  }[];
+  error?: string;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
+// Mapper functions
+function mapCategory(db: DbCategory): Category {
+  return {
+    id: db.id,
+    name: db.name,
+    createdAt: db.created_at,
+  };
+}
+
+function mapItem(db: DbItem): Item {
+  return {
+    id: db.id,
+    name: db.name,
+    defaultCategoryId: db.category_id || '',
+    createdAt: db.created_at,
+  };
+}
+
+function mapInventoryEntry(db: DbInventoryEntry): InventoryEntry {
+  return {
+    id: db.id,
+    itemId: db.item_id,
+    snapshotName: db.snapshot_name,
+    snapshotCategoryId: db.snapshot_category_id || '',
+    quantityBought: db.quantity_bought,
+    unitCost: Number(db.unit_cost),
+    totalCost: db.quantity_bought * Number(db.unit_cost),
+    currencyUnit: db.currency_unit as CurrencyUnit,
+    boughtAt: db.bought_at,
+    remainingQty: db.remaining_qty,
+    status: db.status as 'OPEN' | 'CLOSED',
+    notes: db.notes || '',
+  };
+}
+
+function mapSale(db: DbSale): Sale {
+  // The cost_breakdown contains the entry info for profit calculation
+  const breakdown = db.cost_breakdown || [];
+  const firstEntry = breakdown[0];
+  
+  return {
+    id: db.id,
+    inventoryEntryId: firstEntry?.entryId || '',
+    itemId: db.item_id,
+    quantitySold: db.quantity_sold,
+    amountGained: Number(db.sale_price),
+    currencyUnit: db.currency_unit as CurrencyUnit,
+    soldAt: db.sold_at,
+    notes: db.notes || '',
+  };
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<AppData>(() => storage.loadData());
+  const { user } = useAuth();
+  const [categories, setCategories] = useState<DbCategory[]>([]);
+  const [items, setItems] = useState<DbItem[]>([]);
+  const [inventoryEntries, setInventoryEntries] = useState<DbInventoryEntry[]>([]);
+  const [sales, setSales] = useState<DbSale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
+  // Fetch all data
+  const fetchData = useCallback(async () => {
+    if (!user) {
+      setCategories([]);
+      setItems([]);
+      setInventoryEntries([]);
+      setSales([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const [categoriesRes, itemsRes, entriesRes, salesRes] = await Promise.all([
+        supabase.from('categories').select('*').order('created_at', { ascending: true }),
+        supabase.from('items').select('*').order('created_at', { ascending: true }),
+        supabase.from('inventory_entries').select('*').order('bought_at', { ascending: true }),
+        supabase.from('sales').select('*').order('sold_at', { ascending: false }),
+      ]);
+
+      setCategories((categoriesRes.data || []) as DbCategory[]);
+      setItems((itemsRes.data || []) as DbItem[]);
+      setInventoryEntries((entriesRes.data || []) as DbInventoryEntry[]);
+      setSales((salesRes.data || []).map((sale: any) => ({
+        ...sale,
+        cost_breakdown: sale.cost_breakdown || [],
+      })) as DbSale[]);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
-    setData(storage.loadData());
-    setIsLoading(false);
-  }, []);
-  
-  const updateData = useCallback((newData: AppData) => {
-    storage.saveData(newData);
-    setData(newData);
-  }, []);
-  
-  const addCategory = useCallback((name: string) => {
-    updateData(storage.addCategory(data, name));
-  }, [data, updateData]);
-  
-  const renameCategory = useCallback((id: string, newName: string) => {
-    updateData(storage.renameCategory(data, id, newName));
-  }, [data, updateData]);
-  
-  const deleteCategory = useCallback((id: string) => {
-    updateData(storage.deleteCategory(data, id));
-  }, [data, updateData]);
-  
-  const addItem = useCallback((name: string, categoryId: string): Item => {
-    const newData = storage.addItem(data, name, categoryId);
-    updateData(newData);
-    return newData.items[newData.items.length - 1];
-  }, [data, updateData]);
-  
+    fetchData();
+  }, [fetchData]);
+
+  // Mapped data for UI
+  const data = useMemo(() => ({
+    categories: categories.map(mapCategory),
+    items: items.map(mapItem),
+    inventoryEntries: inventoryEntries.map(mapInventoryEntry),
+    sales: sales.map(mapSale),
+  }), [categories, items, inventoryEntries, sales]);
+
+  // Add category
+  const addCategory = useCallback(async (name: string) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    const { error } = await supabase
+      .from('categories')
+      .insert({ user_id: user.id, name });
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, fetchData]);
+
+  // Rename category
+  const renameCategory = useCallback(async (id: string, newName: string) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    const { error } = await supabase
+      .from('categories')
+      .update({ name: newName })
+      .eq('id', id);
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, fetchData]);
+
+  // Delete category
+  const deleteCategory = useCallback(async (id: string) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    // Find or create "Other" category
+    let otherCategory = categories.find(c => c.name === 'Other');
+    if (!otherCategory) {
+      const { data: newOther } = await supabase
+        .from('categories')
+        .insert({ user_id: user.id, name: 'Other' })
+        .select()
+        .single();
+      otherCategory = newOther as DbCategory;
+    }
+    
+    // Reassign items to "Other" category
+    if (otherCategory) {
+      await supabase
+        .from('items')
+        .update({ category_id: otherCategory.id })
+        .eq('category_id', id);
+    }
+    
+    // Delete the category
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, categories, fetchData]);
+
+  // Add item
+  const addItem = useCallback(async (name: string, categoryId: string): Promise<Item> => {
+    if (!user) throw new Error('Not authenticated');
+    
+    const { data: newItem, error } = await supabase
+      .from('items')
+      .insert({ user_id: user.id, name, category_id: categoryId })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    await fetchData();
+    return mapItem(newItem as DbItem);
+  }, [user, fetchData]);
+
+  // Get item by ID
   const getItemById = useCallback((id: string) => {
     return data.items.find(i => i.id === id);
-  }, [data]);
-  
-  // Combined function to add item and inventory entry atomically
-  const addItemWithInventoryEntry = useCallback((
+  }, [data.items]);
+
+  // Add inventory entry
+  const addInventoryEntry = useCallback(async (
+    itemId: string,
+    snapshotName: string,
+    snapshotCategoryId: string,
+    quantityBought: number,
+    unitCost: number,
+    currencyUnit: CurrencyUnit,
+    notes?: string,
+    boughtAt?: string
+  ) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    const { error } = await supabase
+      .from('inventory_entries')
+      .insert({
+        user_id: user.id,
+        item_id: itemId,
+        snapshot_name: snapshotName,
+        snapshot_category_id: snapshotCategoryId,
+        quantity_bought: quantityBought,
+        remaining_qty: quantityBought,
+        unit_cost: unitCost,
+        currency_unit: currencyUnit,
+        notes: notes || null,
+        bought_at: boughtAt || new Date().toISOString(),
+        status: 'OPEN',
+      });
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, fetchData]);
+
+  // Add item with inventory entry atomically
+  const addItemWithInventoryEntry = useCallback(async (
     name: string,
     categoryId: string,
     snapshotName: string,
@@ -110,64 +406,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     currencyUnit: CurrencyUnit,
     notes?: string,
     boughtAt?: string
-  ): Item => {
-    // First check if item already exists
-    const existingItem = data.items.find(
+  ): Promise<Item> => {
+    if (!user) throw new Error('Not authenticated');
+    
+    // Check if item already exists
+    let item = items.find(
       i => i.name.toLowerCase() === name.trim().toLowerCase()
     );
     
-    let workingData = data;
-    let item: Item;
-    
-    if (existingItem) {
-      item = existingItem;
-    } else {
-      // Add the item first
-      workingData = storage.addItem(data, name, categoryId);
-      item = workingData.items[workingData.items.length - 1];
+    if (!item) {
+      const { data: newItem, error: itemError } = await supabase
+        .from('items')
+        .insert({ user_id: user.id, name: name.trim(), category_id: categoryId })
+        .select()
+        .single();
+      
+      if (itemError) throw itemError;
+      item = newItem as DbItem;
     }
     
-    // Then add inventory entry using the updated data
-    const finalData = storage.addInventoryEntry(
-      workingData,
-      item.id,
-      snapshotName,
-      snapshotCategoryId,
-      quantityBought,
-      unitCost,
-      currencyUnit,
-      notes,
-      boughtAt
-    );
+    // Add inventory entry
+    const { error } = await supabase
+      .from('inventory_entries')
+      .insert({
+        user_id: user.id,
+        item_id: item.id,
+        snapshot_name: snapshotName,
+        snapshot_category_id: snapshotCategoryId,
+        quantity_bought: quantityBought,
+        remaining_qty: quantityBought,
+        unit_cost: unitCost,
+        currency_unit: currencyUnit,
+        notes: notes || null,
+        bought_at: boughtAt || new Date().toISOString(),
+        status: 'OPEN',
+      });
     
-    updateData(finalData);
-    return item;
-  }, [data, updateData]);
-  
-  const addInventoryEntry = useCallback((
-    itemId: string,
-    snapshotName: string,
-    snapshotCategoryId: string,
-    quantityBought: number,
-    unitCost: number,
-    currencyUnit: CurrencyUnit,
-    notes?: string,
-    boughtAt?: string
-  ) => {
-    updateData(storage.addInventoryEntry(
-      data,
-      itemId,
-      snapshotName,
-      snapshotCategoryId,
-      quantityBought,
-      unitCost,
-      currencyUnit,
-      notes,
-      boughtAt
-    ));
-  }, [data, updateData]);
-  
-  const addSale = useCallback((
+    if (error) throw error;
+    await fetchData();
+    return mapItem(item);
+  }, [user, items, fetchData]);
+
+  // Get available entries for an item
+  const getAvailableEntriesForItem = useCallback((itemId: string) => {
+    return data.inventoryEntries
+      .filter(e => e.itemId === itemId && e.status === 'OPEN' && e.remainingQty > 0)
+      .sort((a, b) => new Date(a.boughtAt).getTime() - new Date(b.boughtAt).getTime());
+  }, [data.inventoryEntries]);
+
+  // Record sale
+  const addSale = useCallback(async (
     inventoryEntryId: string,
     quantitySold: number,
     amountGained: number,
@@ -175,39 +463,137 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notes?: string,
     soldAt?: string
   ) => {
-    updateData(storage.addSale(data, inventoryEntryId, quantitySold, amountGained, currencyUnit, notes, soldAt));
-  }, [data, updateData]);
-  
+    if (!user) throw new Error('Not authenticated');
+    
+    const entry = inventoryEntries.find(e => e.id === inventoryEntryId);
+    if (!entry) throw new Error('Inventory entry not found');
+    
+    if (quantitySold > entry.remaining_qty) {
+      throw new Error(`Cannot sell more than ${entry.remaining_qty} remaining`);
+    }
+    
+    const costOfSold = quantitySold * Number(entry.unit_cost);
+    const profit = amountGained - costOfSold;
+    
+    const costBreakdown: CostBreakdownItem[] = [{
+      entryId: entry.id,
+      unitCost: Number(entry.unit_cost),
+      qtyUsed: quantitySold,
+    }];
+    
+    // Update inventory entry
+    const newRemainingQty = entry.remaining_qty - quantitySold;
+    await supabase
+      .from('inventory_entries')
+      .update({
+        remaining_qty: newRemainingQty,
+        status: newRemainingQty === 0 ? 'CLOSED' : 'OPEN',
+      })
+      .eq('id', entry.id);
+    
+    // Create sale record
+    const { error } = await supabase
+      .from('sales')
+      .insert({
+        user_id: user.id,
+        item_id: entry.item_id,
+        quantity_sold: quantitySold,
+        sale_price: amountGained,
+        currency_unit: currencyUnit,
+        cost_breakdown: costBreakdown as any,
+        total_cost: costOfSold,
+        profit,
+        sold_at: soldAt || new Date().toISOString(),
+        notes: notes || null,
+      });
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, inventoryEntries, fetchData]);
+
+  // Get distinct available items (items with OPEN inventory)
   const getDistinctAvailableItems = useCallback(() => {
-    return storage.getDistinctAvailableItems(data);
-  }, [data]);
-  
-  const getAvailableEntriesForItem = useCallback((itemId: string) => {
-    return data.inventoryEntries
-      .filter(e => e.itemId === itemId && e.status === 'OPEN' && e.remainingQty > 0)
-      .sort((a, b) => new Date(a.boughtAt).getTime() - new Date(b.boughtAt).getTime());
-  }, [data]);
-  
-  const simulateProfitFn = useCallback((
+    const itemIdsWithInventory = new Set(
+      data.inventoryEntries
+        .filter(e => e.status === 'OPEN' && e.remainingQty > 0)
+        .map(e => e.itemId)
+    );
+    
+    return data.items.filter(item => itemIdsWithInventory.has(item.id));
+  }, [data.items, data.inventoryEntries]);
+
+  // Simulate profit
+  const simulateProfit = useCallback((
     itemId: string,
     simulateQty: number,
     sellUnitPrice: number
-  ) => {
-    return storage.simulateProfit(data, itemId, simulateQty, sellUnitPrice);
-  }, [data]);
-  
-  const calculateSaleProfitFn = useCallback((sale: Parameters<typeof storage.calculateSaleProfit>[1]) => {
-    return storage.calculateSaleProfit(data, sale);
-  }, [data]);
-  
-  const resetData = useCallback(() => {
-    setData(storage.resetData());
-  }, []);
-  
-  const refreshData = useCallback(() => {
-    setData(storage.loadData());
-  }, []);
-  
+  ): SimulationResult => {
+    const availableEntries = getAvailableEntriesForItem(itemId);
+    const totalAvailable = availableEntries.reduce((sum, e) => sum + e.remainingQty, 0);
+    
+    if (simulateQty > totalAvailable) {
+      return {
+        remainingQty: totalAvailable,
+        simulateQty,
+        sellUnitPrice,
+        projectedRevenue: simulateQty * sellUnitPrice,
+        simulatedCogs: 0,
+        projectedProfit: 0,
+        breakdown: [],
+        error: `Not enough inventory. Only ${totalAvailable} available.`,
+      };
+    }
+    
+    let qtyRemaining = simulateQty;
+    let totalCost = 0;
+    const breakdown: SimulationResult['breakdown'] = [];
+    
+    for (const entry of availableEntries) {
+      if (qtyRemaining <= 0) break;
+      
+      const qtyFromEntry = Math.min(qtyRemaining, entry.remainingQty);
+      const costFromEntry = qtyFromEntry * entry.unitCost;
+      
+      breakdown.push({
+        entryId: entry.id,
+        boughtAt: entry.boughtAt,
+        unitCost: entry.unitCost,
+        qtyUsed: qtyFromEntry,
+        costContribution: costFromEntry,
+      });
+      
+      totalCost += costFromEntry;
+      qtyRemaining -= qtyFromEntry;
+    }
+    
+    const projectedRevenue = simulateQty * sellUnitPrice;
+    
+    return {
+      remainingQty: totalAvailable,
+      simulateQty,
+      sellUnitPrice,
+      projectedRevenue,
+      simulatedCogs: totalCost,
+      projectedProfit: projectedRevenue - totalCost,
+      breakdown,
+    };
+  }, [getAvailableEntriesForItem]);
+
+  // Calculate sale profit
+  const calculateSaleProfit = useCallback((sale: Sale): number => {
+    const dbSale = sales.find(s => s.id === sale.id);
+    if (dbSale) {
+      return Number(dbSale.profit);
+    }
+    
+    // Fallback calculation
+    const entry = data.inventoryEntries.find(e => e.id === sale.inventoryEntryId);
+    if (!entry) return 0;
+    
+    const costOfSold = sale.quantitySold * entry.unitCost;
+    return sale.amountGained - costOfSold;
+  }, [sales, data.inventoryEntries]);
+
   return (
     <AppContext.Provider
       value={{
@@ -223,10 +609,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addSale,
         getDistinctAvailableItems,
         getAvailableEntriesForItem,
-        simulateProfit: simulateProfitFn,
-        calculateSaleProfit: calculateSaleProfitFn,
-        resetData,
-        refreshData,
+        simulateProfit,
+        calculateSaleProfit,
+        refreshData: fetchData,
       }}
     >
       {children}
