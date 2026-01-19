@@ -138,9 +138,9 @@ interface AppContextType {
     boughtAt?: string
   ) => Promise<Item>;
   
-  // Sales
-  addSale: (
-    inventoryEntryId: string,
+  // Sales (FIFO-based, item-level)
+  addSaleByItem: (
+    itemId: string,
     quantitySold: number,
     amountGained: number,
     currencyUnit: CurrencyUnit,
@@ -151,6 +151,7 @@ interface AppContextType {
   // Utilities
   getDistinctAvailableItems: () => Item[];
   getAvailableEntriesForItem: (itemId: string) => InventoryEntry[];
+  getTotalAvailableForItem: (itemId: string) => { quantity: number; totalCost: number; currency: CurrencyUnit | null };
   simulateProfit: (itemId: string, simulateQty: number, sellUnitPrice: number) => SimulationResult;
   calculateSaleProfit: (sale: Sale) => number;
   
@@ -454,9 +455,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => new Date(a.boughtAt).getTime() - new Date(b.boughtAt).getTime());
   }, [data.inventoryEntries]);
 
-  // Record sale
-  const addSale = useCallback(async (
-    inventoryEntryId: string,
+  // Get total available quantity and cost for an item
+  const getTotalAvailableForItem = useCallback((itemId: string) => {
+    const entries = inventoryEntries
+      .filter(e => e.item_id === itemId && e.status === 'OPEN' && e.remaining_qty > 0)
+      .sort((a, b) => new Date(a.bought_at).getTime() - new Date(b.bought_at).getTime());
+    
+    let totalQty = 0;
+    let totalCost = 0;
+    let currency: CurrencyUnit | null = null;
+
+    for (const entry of entries) {
+      totalQty += entry.remaining_qty;
+      totalCost += entry.remaining_qty * Number(entry.unit_cost);
+      if (!currency) currency = entry.currency_unit as CurrencyUnit;
+    }
+
+    return { quantity: totalQty, totalCost, currency };
+  }, [inventoryEntries]);
+
+  // Record sale using FIFO (item-level, auto-deducts from oldest entries)
+  const addSaleByItem = useCallback(async (
+    itemId: string,
     quantitySold: number,
     amountGained: number,
     currencyUnit: CurrencyUnit,
@@ -465,43 +485,68 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!user) throw new Error('Not authenticated');
     
-    const entry = inventoryEntries.find(e => e.id === inventoryEntryId);
-    if (!entry) throw new Error('Inventory entry not found');
+    // Get available entries sorted by FIFO (oldest first)
+    const availableEntries = inventoryEntries
+      .filter(e => e.item_id === itemId && e.status === 'OPEN' && e.remaining_qty > 0)
+      .sort((a, b) => new Date(a.bought_at).getTime() - new Date(b.bought_at).getTime());
     
-    if (quantitySold > entry.remaining_qty) {
-      throw new Error(`Cannot sell more than ${entry.remaining_qty} remaining`);
+    const totalAvailable = availableEntries.reduce((sum, e) => sum + e.remaining_qty, 0);
+    
+    if (quantitySold > totalAvailable) {
+      throw new Error(`Cannot sell more than ${totalAvailable} available`);
     }
     
-    const costOfSold = quantitySold * Number(entry.unit_cost);
-    const profit = amountGained - costOfSold;
+    // Calculate FIFO breakdown
+    let qtyRemaining = quantitySold;
+    let totalCost = 0;
+    const costBreakdown: CostBreakdownItem[] = [];
+    const entryUpdates: { id: string; newQty: number }[] = [];
     
-    const costBreakdown: CostBreakdownItem[] = [{
-      entryId: entry.id,
-      unitCost: Number(entry.unit_cost),
-      qtyUsed: quantitySold,
-    }];
+    for (const entry of availableEntries) {
+      if (qtyRemaining <= 0) break;
+      
+      const qtyFromEntry = Math.min(qtyRemaining, entry.remaining_qty);
+      const costFromEntry = qtyFromEntry * Number(entry.unit_cost);
+      
+      costBreakdown.push({
+        entryId: entry.id,
+        unitCost: Number(entry.unit_cost),
+        qtyUsed: qtyFromEntry,
+      });
+      
+      entryUpdates.push({
+        id: entry.id,
+        newQty: entry.remaining_qty - qtyFromEntry,
+      });
+      
+      totalCost += costFromEntry;
+      qtyRemaining -= qtyFromEntry;
+    }
     
-    // Update inventory entry
-    const newRemainingQty = entry.remaining_qty - quantitySold;
-    await supabase
-      .from('inventory_entries')
-      .update({
-        remaining_qty: newRemainingQty,
-        status: newRemainingQty === 0 ? 'CLOSED' : 'OPEN',
-      })
-      .eq('id', entry.id);
+    const profit = amountGained - totalCost;
+    
+    // Update all affected inventory entries
+    for (const update of entryUpdates) {
+      await supabase
+        .from('inventory_entries')
+        .update({
+          remaining_qty: update.newQty,
+          status: update.newQty === 0 ? 'CLOSED' : 'OPEN',
+        })
+        .eq('id', update.id);
+    }
     
     // Create sale record
     const { error } = await supabase
       .from('sales')
       .insert({
         user_id: user.id,
-        item_id: entry.item_id,
+        item_id: itemId,
         quantity_sold: quantitySold,
         sale_price: amountGained,
         currency_unit: currencyUnit,
         cost_breakdown: costBreakdown as any,
-        total_cost: costOfSold,
+        total_cost: totalCost,
         profit,
         sold_at: soldAt || new Date().toISOString(),
         notes: notes || null,
@@ -606,9 +651,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getItemById,
         addInventoryEntry,
         addItemWithInventoryEntry,
-        addSale,
+        addSaleByItem,
         getDistinctAvailableItems,
         getAvailableEntriesForItem,
+        getTotalAvailableForItem,
         simulateProfit,
         calculateSaleProfit,
         refreshData: fetchData,

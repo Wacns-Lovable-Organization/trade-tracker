@@ -23,11 +23,10 @@ const currencyOptions: { value: CurrencyUnit; label: string }[] = [
 ];
 
 export default function Sales() {
-  const { data, getAvailableEntriesForItem, addSale } = useApp();
+  const { data, addSaleByItem, getTotalAvailableForItem } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItemId, setSelectedItemId] = useState<string>('');
-  const [selectedEntryId, setSelectedEntryId] = useState<string>('');
   const [quantitySold, setQuantitySold] = useState('');
   const [amountGained, setAmountGained] = useState('');
   const [currencyUnit, setCurrencyUnit] = useState<CurrencyUnit>('WL');
@@ -81,25 +80,19 @@ export default function Sales() {
     );
   }, [groupedItems, searchQuery]);
 
-  const availableEntries = useMemo(
-    () => (selectedItemId ? getAvailableEntriesForItem(selectedItemId) : []),
-    [selectedItemId, getAvailableEntriesForItem]
-  );
-
-  const selectedEntry = useMemo(
-    () => data.inventoryEntries.find(e => e.id === selectedEntryId),
-    [data.inventoryEntries, selectedEntryId]
-  );
-
   const selectedItem = useMemo(
     () => data.items.find(i => i.id === selectedItemId),
     [data.items, selectedItemId]
   );
 
+  const selectedItemInfo = useMemo(() => {
+    if (!selectedItemId) return null;
+    return getTotalAvailableForItem(selectedItemId);
+  }, [selectedItemId, getTotalAvailableForItem]);
+
   // Handle item selection
   const handleItemSelect = (itemId: string) => {
     setSelectedItemId(itemId);
-    setSelectedEntryId('');
     setQuantitySold('');
     setAmountGained('');
   };
@@ -107,7 +100,6 @@ export default function Sales() {
   // Go back to item list
   const handleBack = () => {
     setSelectedItemId('');
-    setSelectedEntryId('');
     setQuantitySold('');
     setAmountGained('');
   };
@@ -121,15 +113,36 @@ export default function Sales() {
   // Calculate profit preview
   const qty = parseInt(quantitySold, 10) || 0;
   const amount = parseFloat(amountGained) || 0;
-  const costOfSold = selectedEntry ? qty * selectedEntry.unitCost : 0;
-  const sameCurrency = selectedEntry?.currencyUnit === currencyUnit;
-  const profit = sameCurrency ? amount - costOfSold : null;
+  
+  // Estimate cost using available info (FIFO simulation)
+  const estimatedCost = useMemo(() => {
+    if (!selectedItemId || qty <= 0) return 0;
+    
+    const entries = data.inventoryEntries
+      .filter(e => e.itemId === selectedItemId && e.status === 'OPEN' && e.remainingQty > 0)
+      .sort((a, b) => new Date(a.boughtAt).getTime() - new Date(b.boughtAt).getTime());
+    
+    let remaining = qty;
+    let cost = 0;
+    
+    for (const entry of entries) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, entry.remainingQty);
+      cost += take * entry.unitCost;
+      remaining -= take;
+    }
+    
+    return cost;
+  }, [selectedItemId, qty, data.inventoryEntries]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const sameCurrency = selectedItemInfo?.currency === currencyUnit;
+  const profit = sameCurrency ? amount - estimatedCost : null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedEntryId) {
-      toast.error('Please select an inventory entry');
+    if (!selectedItemId) {
+      toast.error('Please select an item');
       return;
     }
 
@@ -146,28 +159,17 @@ export default function Sales() {
     }
 
     try {
-      addSale(selectedEntryId, qtyNum, amountNum, currencyUnit, notes, new Date(soldAt).toISOString());
+      await addSaleByItem(selectedItemId, qtyNum, amountNum, currencyUnit, notes, new Date(soldAt).toISOString());
       toast.success('Sale recorded successfully');
 
       // Reset form
       setSelectedItemId('');
-      setSelectedEntryId('');
       setQuantitySold('');
       setAmountGained('');
       setNotes('');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to record sale');
     }
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   if (groupedItems.length === 0) {
@@ -205,7 +207,7 @@ export default function Sales() {
                 Sale Details
               </CardTitle>
               <CardDescription>
-                {selectedItemId ? 'Select an inventory batch to sell from' : 'Select an item to sell'}
+                {selectedItemId ? 'Enter sale details' : 'Select an item to sell'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -240,15 +242,18 @@ export default function Sales() {
                 </div>
               )}
 
-              {/* Step 2: Entry Selection */}
-              {selectedItemId && !selectedEntryId && (
-                <div className="space-y-4 animate-fade-in">
+              {/* Step 2: Sale Details */}
+              {selectedItemId && (
+                <div className="space-y-6 animate-fade-in">
                   <div className="flex items-center gap-2">
                     <Button type="button" variant="ghost" size="sm" onClick={handleBack}>
                       <ArrowLeft className="w-4 h-4 mr-1" />
                       Back
                     </Button>
                     <span className="font-medium">{selectedItem?.name}</span>
+                    <span className="text-muted-foreground">
+                      • {selectedItemInfo?.quantity} available
+                    </span>
                     <Button
                       type="button"
                       variant="outline"
@@ -261,64 +266,6 @@ export default function Sales() {
                     </Button>
                   </div>
 
-                  <Label>Select Inventory Batch</Label>
-                  <div className="grid gap-2">
-                    {availableEntries.map(entry => (
-                      <button
-                        key={entry.id}
-                        type="button"
-                        onClick={() => setSelectedEntryId(entry.id)}
-                        className={cn(
-                          'w-full p-4 rounded-lg border text-left transition-default',
-                          selectedEntryId === entry.id
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:border-primary/50'
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-sm text-muted-foreground">
-                              {formatDate(entry.boughtAt)}
-                            </div>
-                            <div className="flex items-center gap-3 mt-1">
-                              <span className="font-mono">
-                                {entry.remainingQty} remaining
-                              </span>
-                              <span className="text-muted-foreground">@</span>
-                              <CurrencyDisplay
-                                amount={entry.unitCost}
-                                currency={entry.currencyUnit}
-                                size="sm"
-                              />
-                            </div>
-                          </div>
-                          <div
-                            className={cn(
-                              'w-4 h-4 rounded-full border-2',
-                              selectedEntryId === entry.id
-                                ? 'border-primary bg-primary'
-                                : 'border-muted-foreground'
-                            )}
-                          />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Sale Details */}
-              {selectedEntryId && (
-                <div className="space-y-6 animate-fade-in">
-                  <div className="flex items-center gap-2">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedEntryId('')}>
-                      <ArrowLeft className="w-4 h-4 mr-1" />
-                      Back
-                    </Button>
-                    <span className="font-medium">{selectedItem?.name}</span>
-                    <span className="text-muted-foreground">• {formatDate(selectedEntry?.boughtAt || '')}</span>
-                  </div>
-
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="quantity">Quantity Sold *</Label>
@@ -326,11 +273,11 @@ export default function Sales() {
                         id="quantity"
                         type="number"
                         min="1"
-                        max={selectedEntry?.remainingQty}
+                        max={selectedItemInfo?.quantity}
                         step="1"
                         value={quantitySold}
                         onChange={(e) => setQuantitySold(e.target.value)}
-                        placeholder={`Max: ${selectedEntry?.remainingQty}`}
+                        placeholder={`Max: ${selectedItemInfo?.quantity}`}
                         required
                       />
                     </div>
@@ -424,8 +371,8 @@ export default function Sales() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Cost of Goods</span>
                     <CurrencyDisplay
-                      amount={costOfSold}
-                      currency={selectedEntry?.currencyUnit || 'WL'}
+                      amount={estimatedCost}
+                      currency={selectedItemInfo?.currency || 'WL'}
                       size="sm"
                     />
                   </div>
@@ -446,9 +393,9 @@ export default function Sales() {
                   </div>
                 </div>
 
-                {!sameCurrency && selectedEntry && (
+                {!sameCurrency && selectedItemInfo?.currency && (
                   <p className="text-xs text-warning bg-warning/10 p-2 rounded">
-                    Note: Selling in {currencyUnit} but bought in {selectedEntry.currencyUnit}. Profit shown separately.
+                    Note: Selling in {currencyUnit} but inventory is in {selectedItemInfo.currency}. Profit shown separately.
                   </p>
                 )}
 
@@ -456,7 +403,7 @@ export default function Sales() {
                   type="submit"
                   className="w-full gap-2"
                   size="lg"
-                  disabled={!selectedEntryId || !qty || !amount}
+                  disabled={!selectedItemId || !qty || !amount}
                 >
                   Record Sale
                   <ArrowRight className="w-4 h-4" />
