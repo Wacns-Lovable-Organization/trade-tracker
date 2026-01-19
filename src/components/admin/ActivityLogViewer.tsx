@@ -12,6 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { 
   History, 
   Clock, 
@@ -26,12 +32,14 @@ import {
   Ban,
   UserX,
   AlertTriangle,
-  Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CalendarIcon,
+  X
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays, subMonths, isAfter, isBefore } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface ActivityLog {
   id: string;
@@ -88,6 +96,9 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [limitCount, setLimitCount] = useState(50);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [datePreset, setDatePreset] = useState<string>('all');
 
   const fetchActivityLogs = useCallback(async () => {
     setIsLoading(true);
@@ -111,6 +122,47 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
     fetchActivityLogs();
   }, [fetchActivityLogs]);
 
+  // Apply date preset
+  const applyDatePreset = useCallback((preset: string) => {
+    setDatePreset(preset);
+    const now = new Date();
+    
+    switch (preset) {
+      case 'today':
+        setStartDate(startOfDay(now));
+        setEndDate(endOfDay(now));
+        break;
+      case 'yesterday':
+        const yesterday = subDays(now, 1);
+        setStartDate(startOfDay(yesterday));
+        setEndDate(endOfDay(yesterday));
+        break;
+      case 'last7days':
+        setStartDate(startOfDay(subDays(now, 7)));
+        setEndDate(endOfDay(now));
+        break;
+      case 'last30days':
+        setStartDate(startOfDay(subDays(now, 30)));
+        setEndDate(endOfDay(now));
+        break;
+      case 'last3months':
+        setStartDate(startOfDay(subMonths(now, 3)));
+        setEndDate(endOfDay(now));
+        break;
+      case 'all':
+      default:
+        setStartDate(undefined);
+        setEndDate(undefined);
+        break;
+    }
+  }, []);
+
+  const clearDateFilter = useCallback(() => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setDatePreset('all');
+  }, []);
+
   const filteredLogs = activityLogs.filter(log => {
     const matchesSearch = searchQuery === '' ||
       log.action_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -121,7 +173,12 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
       log.action_type === actionFilter ||
       (actionFilter === 'impersonation' && log.action_type.startsWith('impersonation'));
 
-    return matchesSearch && matchesAction;
+    const logDate = new Date(log.created_at);
+    const matchesDateRange = 
+      (!startDate || !isBefore(logDate, startDate)) &&
+      (!endDate || !isAfter(logDate, endDate));
+
+    return matchesSearch && matchesAction && matchesDateRange;
   });
 
   const getActionConfig = (actionType: string) => {
@@ -233,48 +290,164 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by action, user, or details..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by action, user, or details..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Select value={actionFilter} onValueChange={setActionFilter}>
+                <SelectTrigger className="w-48">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Filter action" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Actions</SelectItem>
+                  <SelectItem value="impersonation">All Impersonation</SelectItem>
+                  <SelectItem value="impersonation_start">Impersonation Start</SelectItem>
+                  <SelectItem value="impersonation_end">Impersonation End</SelectItem>
+                  <SelectItem value="impersonation_action">Impersonation Actions</SelectItem>
+                  <SelectItem value="role_assigned">Role Changes</SelectItem>
+                  {uniqueActionTypes.filter(t => !['impersonation_start', 'impersonation_end', 'impersonation_action', 'role_assigned'].includes(t)).map(type => (
+                    <SelectItem key={type} value={type}>
+                      {getActionConfig(type).label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={String(limitCount)} onValueChange={(v) => setLimitCount(Number(v))}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="250">250</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger className="w-48">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Filter action" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Actions</SelectItem>
-                <SelectItem value="impersonation">All Impersonation</SelectItem>
-                <SelectItem value="impersonation_start">Impersonation Start</SelectItem>
-                <SelectItem value="impersonation_end">Impersonation End</SelectItem>
-                <SelectItem value="impersonation_action">Impersonation Actions</SelectItem>
-                <SelectItem value="role_assigned">Role Changes</SelectItem>
-                {uniqueActionTypes.filter(t => !['impersonation_start', 'impersonation_end', 'impersonation_action', 'role_assigned'].includes(t)).map(type => (
-                  <SelectItem key={type} value={type}>
-                    {getActionConfig(type).label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={String(limitCount)} onValueChange={(v) => setLimitCount(Number(v))}>
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-                <SelectItem value="250">250</SelectItem>
-              </SelectContent>
-            </Select>
+
+          {/* Date Range Filter */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Date Range:</span>
+            </div>
+            <div className="flex flex-wrap gap-2 items-center">
+              <Select value={datePreset} onValueChange={applyDatePreset}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Select range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="last7days">Last 7 Days</SelectItem>
+                  <SelectItem value="last30days">Last 30 Days</SelectItem>
+                  <SelectItem value="last3months">Last 3 Months</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <span className="text-sm text-muted-foreground">or</span>
+              
+              {/* Start Date Picker */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "w-[130px] justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "MMM d, yyyy") : "Start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={(date) => {
+                      setStartDate(date ? startOfDay(date) : undefined);
+                      setDatePreset('custom');
+                    }}
+                    disabled={(date) => endDate ? isAfter(date, endDate) : false}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <span className="text-sm text-muted-foreground">to</span>
+
+              {/* End Date Picker */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "w-[130px] justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "MMM d, yyyy") : "End date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={(date) => {
+                      setEndDate(date ? endOfDay(date) : undefined);
+                      setDatePreset('custom');
+                    }}
+                    disabled={(date) => startDate ? isBefore(date, startDate) : false}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {(startDate || endDate) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearDateFilter}
+                  className="h-8 px-2"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Clear date filter</span>
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Active date filter indicator */}
+          {(startDate || endDate) && (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                <CalendarIcon className="w-3 h-3 mr-1" />
+                {startDate && endDate 
+                  ? `${format(startDate, "MMM d, yyyy")} - ${format(endDate, "MMM d, yyyy")}`
+                  : startDate 
+                    ? `From ${format(startDate, "MMM d, yyyy")}`
+                    : `Until ${format(endDate!, "MMM d, yyyy")}`
+                }
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Stats Summary */}
