@@ -46,11 +46,23 @@ interface UserActivity {
   active_devices: number;
 }
 
-// Currency display order and styling
-const CURRENCY_CONFIG: Record<string, { label: string; color: string; priority: number }> = {
-  BGL: { label: 'BGL', color: 'bg-amber-500/20 text-amber-600 border-amber-500/30', priority: 1 },
-  DL: { label: 'DL', color: 'bg-blue-500/20 text-blue-600 border-blue-500/30', priority: 2 },
-  WL: { label: 'WL', color: 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30', priority: 3 },
+// Currency conversion: 100 WL = 1 DL, 100 DL = 1 BGL
+const convertToWL = (amount: number, currency: string): number => {
+  switch (currency) {
+    case 'BGL': return amount * 10000; // 1 BGL = 100 DL = 10000 WL
+    case 'DL': return amount * 100;    // 1 DL = 100 WL
+    case 'WL': return amount;
+    default: return amount;
+  }
+};
+
+// Convert total WL to BGL/DL/WL breakdown
+const convertWLToBreakdown = (totalWL: number): { bgl: number; dl: number; wl: number } => {
+  const bgl = Math.floor(totalWL / 10000);
+  const remaining = totalWL % 10000;
+  const dl = Math.floor(remaining / 100);
+  const wl = Math.round(remaining % 100);
+  return { bgl, dl, wl };
 };
 
 export function AdminDashboard() {
@@ -97,12 +109,19 @@ export function AdminDashboard() {
     fetchDashboardData();
   }, []);
 
-  // Calculate total profit across all currencies (for display purposes, grouped by currency)
-  const sortedProfits = [...profitByCurrency].sort((a, b) => {
-    const priorityA = CURRENCY_CONFIG[a.currency_unit]?.priority || 99;
-    const priorityB = CURRENCY_CONFIG[b.currency_unit]?.priority || 99;
-    return priorityA - priorityB;
-  });
+  // Calculate total profit by converting all currencies to WL and summing
+  const totalProfitInWL = profitByCurrency.reduce((sum, item) => {
+    return sum + convertToWL(Number(item.total_profit), item.currency_unit);
+  }, 0);
+  
+  const totalRevenueInWL = profitByCurrency.reduce((sum, item) => {
+    return sum + convertToWL(Number(item.total_revenue), item.currency_unit);
+  }, 0);
+  
+  const totalSales = profitByCurrency.reduce((sum, item) => sum + item.sale_count, 0);
+  
+  const profitBreakdown = convertWLToBreakdown(totalProfitInWL);
+  const revenueBreakdown = convertWLToBreakdown(totalRevenueInWL);
 
   if (isLoading) {
     return (
@@ -165,59 +184,59 @@ export function AdminDashboard() {
         />
       </div>
 
-      {/* Profit by Currency */}
+      {/* Total Profit */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Coins className="w-5 h-5" />
-            Total Profit by Currency
+            Total Profit
           </CardTitle>
           <CardDescription>
-            Combined profit from all sales, grouped by currency
+            Combined profit from all {totalSales} sales across all users
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {sortedProfits.length === 0 ? (
+          {profitByCurrency.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">No sales recorded yet</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {sortedProfits.map((item) => {
-                const config = CURRENCY_CONFIG[item.currency_unit] || { 
-                  label: item.currency_unit, 
-                  color: 'bg-muted text-muted-foreground',
-                  priority: 99 
-                };
-                
-                return (
-                  <div
-                    key={item.currency_unit}
-                    className={`p-4 rounded-xl border ${config.color}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <Badge variant="outline" className={config.color}>
-                        {config.label}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {item.sale_count} sales
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Revenue</span>
-                        <p className="text-lg font-bold">
-                          {Number(item.total_revenue).toLocaleString()} {config.label}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Profit</span>
-                        <p className={`text-lg font-bold ${Number(item.total_profit) >= 0 ? 'text-profit' : 'text-loss'}`}>
-                          {Number(item.total_profit) >= 0 ? '+' : ''}{Number(item.total_profit).toLocaleString()} {config.label}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="space-y-6">
+              {/* Total Profit Display */}
+              <div className="text-center p-6 rounded-xl bg-muted/50 border">
+                <span className="text-sm text-muted-foreground block mb-2">Total Profit</span>
+                <div className={`text-3xl font-bold ${totalProfitInWL >= 0 ? 'text-profit' : 'text-loss'}`}>
+                  {totalProfitInWL >= 0 ? '+' : ''}{totalProfitInWL.toLocaleString()} WL
+                </div>
+                <div className="flex items-center justify-center gap-3 mt-3 text-lg">
+                  <span className="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-600 border border-amber-500/30 font-semibold">
+                    {profitBreakdown.bgl.toLocaleString()} BGL
+                  </span>
+                  <span className="px-3 py-1 rounded-lg bg-blue-500/20 text-blue-600 border border-blue-500/30 font-semibold">
+                    {profitBreakdown.dl} DL
+                  </span>
+                  <span className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 font-semibold">
+                    {profitBreakdown.wl} WL
+                  </span>
+                </div>
+              </div>
+              
+              {/* Total Revenue Display */}
+              <div className="text-center p-4 rounded-xl bg-muted/30 border">
+                <span className="text-sm text-muted-foreground block mb-2">Total Revenue</span>
+                <div className="text-xl font-bold">
+                  {totalRevenueInWL.toLocaleString()} WL
+                </div>
+                <div className="flex items-center justify-center gap-2 mt-2 text-sm">
+                  <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-600">
+                    {revenueBreakdown.bgl.toLocaleString()} BGL
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600">
+                    {revenueBreakdown.dl} DL
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600">
+                    {revenueBreakdown.wl} WL
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
