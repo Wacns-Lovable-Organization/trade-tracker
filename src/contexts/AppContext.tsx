@@ -16,6 +16,7 @@ export interface DbItem {
   user_id: string;
   name: string;
   category_id: string | null;
+  image_url: string | null;
   created_at: string;
 }
 
@@ -67,6 +68,7 @@ export interface Item {
   id: string;
   name: string;
   defaultCategoryId: string;
+  imageUrl: string | null;
   createdAt: string;
 }
 
@@ -160,6 +162,20 @@ interface AppContextType {
     soldAt?: string
   ) => Promise<void>;
   
+  updateSale: (
+    saleId: string,
+    updates: {
+      quantitySold?: number;
+      amountGained?: number;
+      notes?: string;
+    }
+  ) => Promise<void>;
+  
+  deleteSale: (saleId: string) => Promise<void>;
+  
+  // Items
+  updateItemImage: (itemId: string, imageUrl: string | null) => Promise<void>;
+  
   // Utilities
   getDistinctAvailableItems: () => Item[];
   getAvailableEntriesForItem: (itemId: string) => InventoryEntry[];
@@ -173,6 +189,7 @@ interface AppContextType {
     totalRevenue: number;
     totalCost: number;
     cumulativeProfit: number;
+    profitMargin: number;
     currency: CurrencyUnit | null;
   };
   simulateProfit: (itemId: string, simulateQty: number, sellUnitPrice: number) => SimulationResult;
@@ -215,6 +232,7 @@ function mapItem(db: DbItem): Item {
     id: db.id,
     name: db.name,
     defaultCategoryId: db.category_id || '',
+    imageUrl: db.image_url || null,
     createdAt: db.created_at,
   };
 }
@@ -568,8 +586,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     
     const cumulativeProfit = totalRevenue - totalCost;
+    const profitMargin = totalRevenue > 0 ? (cumulativeProfit / totalRevenue) * 100 : 0;
     
-    return { totalRevenue, totalCost, cumulativeProfit, currency };
+    return { totalRevenue, totalCost, cumulativeProfit, profitMargin, currency };
   }, [sales, inventoryEntries]);
 
   // Record sale - simple logic: profit = revenue - (lifetime_total_cost / total_purchased_qty * qty_sold)
@@ -623,6 +642,73 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
     await fetchData();
   }, [user, getTotalAvailableForItem, fetchData]);
+
+  // Update sale
+  const updateSale = useCallback(async (
+    saleId: string,
+    updates: {
+      quantitySold?: number;
+      amountGained?: number;
+      notes?: string;
+    }
+  ) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    const updateData: Record<string, any> = {};
+    if (updates.quantitySold !== undefined) updateData.quantity_sold = updates.quantitySold;
+    if (updates.amountGained !== undefined) updateData.sale_price = updates.amountGained;
+    if (updates.notes !== undefined) updateData.notes = updates.notes || null;
+    
+    // Recalculate profit if quantity or amount changed
+    if (updates.quantitySold !== undefined || updates.amountGained !== undefined) {
+      const sale = sales.find(s => s.id === saleId);
+      if (sale) {
+        const itemInfo = getTotalAvailableForItem(sale.item_id);
+        const avgCost = itemInfo.totalPurchasedQty > 0 
+          ? itemInfo.lifetimeTotalCost / itemInfo.totalPurchasedQty 
+          : 0;
+        const qty = updates.quantitySold ?? sale.quantity_sold;
+        const amount = updates.amountGained ?? Number(sale.sale_price);
+        const costOfGoodsSold = avgCost * qty;
+        updateData.total_cost = costOfGoodsSold;
+        updateData.profit = amount - costOfGoodsSold;
+      }
+    }
+    
+    const { error } = await supabase
+      .from('sales')
+      .update(updateData)
+      .eq('id', saleId);
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, sales, getTotalAvailableForItem, fetchData]);
+
+  // Delete sale
+  const deleteSale = useCallback(async (saleId: string) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    const { error } = await supabase
+      .from('sales')
+      .delete()
+      .eq('id', saleId);
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, fetchData]);
+
+  // Update item image
+  const updateItemImage = useCallback(async (itemId: string, imageUrl: string | null) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    const { error } = await supabase
+      .from('items')
+      .update({ image_url: imageUrl })
+      .eq('id', itemId);
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, fetchData]);
 
   // Get distinct available items (items with OPEN inventory)
   const getDistinctAvailableItems = useCallback(() => {
@@ -722,6 +808,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteInventoryEntry,
         addItemWithInventoryEntry,
         addSaleByItem,
+        updateSale,
+        deleteSale,
+        updateItemImage,
         getDistinctAvailableItems,
         getAvailableEntriesForItem,
         getTotalAvailableForItem,

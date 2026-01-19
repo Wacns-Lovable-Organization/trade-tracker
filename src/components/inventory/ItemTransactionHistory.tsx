@@ -1,17 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CurrencyDisplay, ProfitDisplay } from '@/components/ui/CurrencyDisplay';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Package, TrendingUp, Calendar, ArrowDownCircle, ArrowUpCircle, Pencil, Trash2, X, Check, DollarSign } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Package, Calendar, ArrowDownCircle, ArrowUpCircle, Pencil, Trash2, X, Check, DollarSign, Percent, ImagePlus, Camera } from 'lucide-react';
 import { useApp, type InventoryEntry, type Sale, type Item } from '@/contexts/AppContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface ItemTransactionHistoryProps {
@@ -29,9 +31,22 @@ export function ItemTransactionHistory({
   inventoryEntries,
   sales,
 }: ItemTransactionHistoryProps) {
-  const { updateInventoryEntry, deleteInventoryEntry, getItemProfitSummary } = useApp();
+  const { user } = useAuth();
+  const { 
+    updateInventoryEntry, 
+    deleteInventoryEntry, 
+    updateSale, 
+    deleteSale, 
+    updateItemImage,
+    getItemProfitSummary 
+  } = useApp();
+  
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ quantityBought: 0, unitCost: 0, notes: '' });
+  const [saleEditForm, setSaleEditForm] = useState({ quantitySold: 0, amountGained: 0, notes: '' });
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const itemEntries = useMemo(() => {
     if (!item) return [];
@@ -63,6 +78,7 @@ export function ItemTransactionHistory({
     });
   };
 
+  // Inventory entry handlers
   const handleStartEdit = (entry: InventoryEntry) => {
     setEditingEntryId(entry.id);
     setEditForm({
@@ -100,15 +116,104 @@ export function ItemTransactionHistory({
     }
   };
 
+  // Sale handlers
+  const handleStartSaleEdit = (sale: Sale) => {
+    setEditingSaleId(sale.id);
+    setSaleEditForm({
+      quantitySold: sale.quantitySold,
+      amountGained: sale.amountGained,
+      notes: sale.notes || '',
+    });
+  };
+
+  const handleCancelSaleEdit = () => {
+    setEditingSaleId(null);
+    setSaleEditForm({ quantitySold: 0, amountGained: 0, notes: '' });
+  };
+
+  const handleSaveSaleEdit = async (saleId: string) => {
+    try {
+      await updateSale(saleId, {
+        quantitySold: saleEditForm.quantitySold,
+        amountGained: saleEditForm.amountGained,
+        notes: saleEditForm.notes,
+      });
+      toast.success('Sale updated');
+      setEditingSaleId(null);
+    } catch (error) {
+      toast.error('Failed to update sale');
+    }
+  };
+
+  const handleDeleteSale = async (saleId: string) => {
+    try {
+      await deleteSale(saleId);
+      toast.success('Sale deleted');
+    } catch (error) {
+      toast.error('Failed to delete sale');
+    }
+  };
+
+  // Image upload handler
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !item || !user) return;
+
+    setIsUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${item.id}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('item-images')
+        .upload(fileName, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('item-images')
+        .getPublicUrl(fileName);
+      
+      await updateItemImage(item.id, publicUrl);
+      toast.success('Image uploaded');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   if (!item) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5 text-primary" />
-            {item.name} - Transaction History
+          <DialogTitle className="flex items-center gap-3">
+            <div className="relative group">
+              <Avatar className="h-10 w-10 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                <AvatarImage src={item.imageUrl || undefined} alt={item.name} />
+                <AvatarFallback className="bg-primary/10">
+                  <Package className="w-5 h-5 text-primary" />
+                </AvatarFallback>
+              </Avatar>
+              <div 
+                className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera className="w-4 h-4 text-white" />
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+                disabled={isUploadingImage}
+              />
+            </div>
+            <span>{item.name} - Transaction History</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -120,9 +225,9 @@ export function ItemTransactionHistory({
                 <DollarSign className="w-4 h-4 text-primary" />
                 <span className="font-medium text-sm">Profit Summary</span>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-3">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
+                  <p className="text-xs text-muted-foreground mb-1">Revenue</p>
                   <CurrencyDisplay
                     amount={profitSummary.totalRevenue}
                     currency={profitSummary.currency}
@@ -131,7 +236,7 @@ export function ItemTransactionHistory({
                   />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Total Cost</p>
+                  <p className="text-xs text-muted-foreground mb-1">Cost</p>
                   <CurrencyDisplay
                     amount={profitSummary.totalCost}
                     currency={profitSummary.currency}
@@ -140,13 +245,22 @@ export function ItemTransactionHistory({
                   />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Cumulative Profit</p>
+                  <p className="text-xs text-muted-foreground mb-1">Profit</p>
                   <ProfitDisplay
                     profit={profitSummary.cumulativeProfit}
                     currency={profitSummary.currency}
                     size="sm"
                     className="font-semibold"
                   />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Margin</p>
+                  <div className="flex items-center gap-1">
+                    <Percent className="w-3 h-3 text-muted-foreground" />
+                    <span className={`font-semibold text-sm ${profitSummary.profitMargin >= 0 ? 'text-profit' : 'text-loss'}`}>
+                      {profitSummary.profitMargin.toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -166,7 +280,7 @@ export function ItemTransactionHistory({
           </TabsList>
 
           <TabsContent value="purchases">
-            <ScrollArea className="h-[350px] pr-4">
+            <ScrollArea className="h-[300px] pr-4">
               {itemEntries.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No purchase records found.
@@ -177,7 +291,6 @@ export function ItemTransactionHistory({
                     <Card key={entry.id}>
                       <CardContent className="p-4">
                         {editingEntryId === entry.id ? (
-                          // Edit mode
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-3">
                               <div>
@@ -221,7 +334,6 @@ export function ItemTransactionHistory({
                             </div>
                           </div>
                         ) : (
-                          // View mode
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -295,7 +407,7 @@ export function ItemTransactionHistory({
           </TabsContent>
 
           <TabsContent value="sales">
-            <ScrollArea className="h-[350px] pr-4">
+            <ScrollArea className="h-[300px] pr-4">
               {itemSales.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No sales records found.
@@ -305,36 +417,116 @@ export function ItemTransactionHistory({
                   {itemSales.map((sale) => (
                     <Card key={sale.id}>
                       <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
-                                SOLD
-                              </Badge>
-                              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {formatDate(sale.soldAt)}
-                              </span>
+                        {editingSaleId === sale.id ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-xs">Quantity Sold</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={saleEditForm.quantitySold}
+                                  onChange={(e) => setSaleEditForm(f => ({ ...f, quantitySold: parseInt(e.target.value) || 0 }))}
+                                  className="h-8"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Total Amount</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={saleEditForm.amountGained}
+                                  onChange={(e) => setSaleEditForm(f => ({ ...f, amountGained: parseFloat(e.target.value) || 0 }))}
+                                  className="h-8"
+                                />
+                              </div>
                             </div>
-                            {sale.notes && (
-                              <p className="text-sm text-muted-foreground mt-1 truncate">
-                                {sale.notes}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right space-y-1">
-                            <div className="text-sm">
-                              <span className="font-mono font-medium">{sale.quantitySold}</span>
-                              <span className="text-muted-foreground"> sold</span>
+                            <div>
+                              <Label className="text-xs">Notes</Label>
+                              <Input
+                                value={saleEditForm.notes}
+                                onChange={(e) => setSaleEditForm(f => ({ ...f, notes: e.target.value }))}
+                                className="h-8"
+                                placeholder="Optional notes..."
+                              />
                             </div>
-                            <CurrencyDisplay
-                              amount={sale.amountGained}
-                              currency={sale.currencyUnit}
-                              size="sm"
-                              className="font-medium"
-                            />
+                            <div className="flex gap-2 justify-end">
+                              <Button size="sm" variant="ghost" onClick={handleCancelSaleEdit}>
+                                <X className="w-4 h-4 mr-1" /> Cancel
+                              </Button>
+                              <Button size="sm" onClick={() => handleSaveSaleEdit(sale.id)}>
+                                <Check className="w-4 h-4 mr-1" /> Save
+                              </Button>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
+                                  SOLD
+                                </Badge>
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {formatDate(sale.soldAt)}
+                                </span>
+                              </div>
+                              {sale.notes && (
+                                <p className="text-sm text-muted-foreground mt-1 truncate">
+                                  {sale.notes}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right space-y-1">
+                              <div className="text-sm">
+                                <span className="font-mono font-medium">{sale.quantitySold}</span>
+                                <span className="text-muted-foreground"> sold</span>
+                              </div>
+                              <CurrencyDisplay
+                                amount={sale.amountGained}
+                                currency={sale.currencyUnit}
+                                size="sm"
+                                className="font-medium"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => handleStartSaleEdit(sale)}
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Sale</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently delete this sale record. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteSale(sale.id)}>
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
