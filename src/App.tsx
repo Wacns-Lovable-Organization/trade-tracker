@@ -12,6 +12,9 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FeatureGate } from "@/components/FeatureGate";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ViewAsBanner } from "@/components/admin/ViewAsBanner";
+import { SkipLinks } from "@/components/SkipLinks";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { usePageAnalytics } from "@/hooks/usePageAnalytics";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Categories from "./pages/Categories";
@@ -30,6 +33,15 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Get GA measurement ID from environment or leave empty
+const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || '';
+
+// Component to track page analytics
+function PageAnalyticsTracker() {
+  usePageAnalytics();
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
@@ -38,6 +50,9 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <GoogleAnalytics measurementId={GA_MEASUREMENT_ID} />
+            <PageAnalyticsTracker />
+            <SkipLinks />
             <AuthProvider>
               <ViewAsProvider>
                 <Routes>
