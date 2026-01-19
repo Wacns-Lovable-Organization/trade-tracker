@@ -18,6 +18,7 @@ import Sales from "./pages/Sales";
 import ProfitSimulator from "./pages/ProfitSimulator";
 import AdminPanel from "./pages/AdminPanel";
 import Auth from "./pages/Auth";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <ViewAsProvider>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/install" element={<Install />} />
               <Route
                 path="/*"
                 element={
