@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AppProvider } from "@/contexts/AppContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -31,18 +32,20 @@ const App = () => (
               path="/*"
               element={
                 <ProtectedRoute>
-                  <AppLayout>
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/settings" element={<Settings />} />
-                      <Route path="/categories" element={<Categories />} />
-                      <Route path="/inventory/add" element={<InventoryAdd />} />
-                      <Route path="/inventory" element={<InventoryList />} />
-                      <Route path="/sales" element={<Sales />} />
-                      <Route path="/simulate" element={<ProfitSimulator />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </AppLayout>
+                  <AppProvider>
+                    <AppLayout>
+                      <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/settings" element={<Settings />} />
+                        <Route path="/categories" element={<Categories />} />
+                        <Route path="/inventory/add" element={<InventoryAdd />} />
+                        <Route path="/inventory" element={<InventoryList />} />
+                        <Route path="/sales" element={<Sales />} />
+                        <Route path="/simulate" element={<ProfitSimulator />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </AppLayout>
+                  </AppProvider>
                 </ProtectedRoute>
               }
             />
