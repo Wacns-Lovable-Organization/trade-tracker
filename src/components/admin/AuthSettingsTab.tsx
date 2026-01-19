@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Loader2, Mail, Shield, AlertTriangle, CheckCircle2, Palette, Clock } from 'lucide-react';
 import { useAppSettings, AuthMethodSettings, EmailTemplateSettings, RateLimitSettings } from '@/hooks/useAppSettings';
+import { EmailPreview } from './EmailPreview';
 
 export function AuthSettingsTab() {
   const { settings, isLoading, updateAuthMethod, updateEmailTemplate, updateRateLimit } = useAppSettings();
@@ -391,6 +392,9 @@ export function AuthSettingsTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Email Preview Card */}
+      <EmailPreview template={currentEmailTemplate} />
 
       {/* Rate Limiting Configuration Card */}
       <Card>
