@@ -53,6 +53,51 @@ export function saveData(data: AppData): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
+// Export data as JSON file
+export function exportData(): void {
+  const data = loadData();
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `inventory_data_${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Import data from JSON file
+export function importData(file: File): Promise<AppData> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const imported = JSON.parse(content) as AppData;
+        
+        // Validate structure
+        if (!imported.meta || !imported.categories || !imported.items || !imported.inventoryEntries || !imported.sales) {
+          throw new Error('Invalid data structure');
+        }
+        
+        // Ensure "Other" category exists
+        if (!imported.categories.find(c => c.id === 'cat_other')) {
+          imported.categories.unshift(DEFAULT_CATEGORY);
+        }
+        
+        saveData(imported);
+        resolve(imported);
+      } catch (error) {
+        reject(new Error('Invalid JSON file or data structure'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsText(file);
+  });
+}
+
 export function resetData(): AppData {
   const data = createDefaultData();
   saveData(data);
