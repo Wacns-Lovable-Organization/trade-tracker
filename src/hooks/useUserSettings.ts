@@ -10,6 +10,7 @@ export interface UserSettings {
   push_notifications_enabled: boolean;
   email_notifications_enabled: boolean;
   theme: string;
+  language: string;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +51,7 @@ export function useUserSettings() {
             push_notifications_enabled: false,
             email_notifications_enabled: false,
             theme: 'dark',
+            language: localStorage.getItem('i18nextLng') || 'en',
           })
           .select()
           .single();

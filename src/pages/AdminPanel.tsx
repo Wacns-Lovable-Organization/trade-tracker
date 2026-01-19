@@ -80,6 +80,8 @@ import { DevicesTab } from '@/components/admin/DevicesTab';
 import { ActivityLogViewer } from '@/components/admin/ActivityLogViewer';
 import { ImpersonationConfirmDialog } from '@/components/admin/ImpersonationConfirmDialog';
 import { FeatureFlagsTab } from '@/components/admin/FeatureFlagsTab';
+import { PageAnalyticsTab } from '@/components/admin/PageAnalyticsTab';
+import { UserFeatureOverridesDialog } from '@/components/admin/UserFeatureOverridesDialog';
 
 interface UserProfile {
   id: string;

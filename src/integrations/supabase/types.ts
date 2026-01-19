@@ -324,6 +324,57 @@ export type Database = {
         }
         Relationships: []
       }
+      page_analytics: {
+        Row: {
+          browser: string | null
+          country: string | null
+          created_at: string
+          device_type: string | null
+          duration_ms: number | null
+          id: string
+          ip_address: string | null
+          os: string | null
+          page_path: string
+          page_title: string | null
+          referrer: string | null
+          session_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          browser?: string | null
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          duration_ms?: number | null
+          id?: string
+          ip_address?: string | null
+          os?: string | null
+          page_path: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          browser?: string | null
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          duration_ms?: number | null
+          id?: string
+          ip_address?: string | null
+          os?: string | null
+          page_path?: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -583,6 +634,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_feature_overrides: {
+        Row: {
+          created_at: string
+          created_by: string
+          feature_key: string
+          id: string
+          is_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          feature_key: string
+          id?: string
+          is_enabled: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          feature_key?: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_at: string
@@ -612,6 +693,7 @@ export type Database = {
           created_at: string
           email_notifications_enabled: boolean
           id: string
+          language: string
           low_stock_alerts_enabled: boolean
           low_stock_threshold_global: number | null
           push_notifications_enabled: boolean
@@ -623,6 +705,7 @@ export type Database = {
           created_at?: string
           email_notifications_enabled?: boolean
           id?: string
+          language?: string
           low_stock_alerts_enabled?: boolean
           low_stock_threshold_global?: number | null
           push_notifications_enabled?: boolean
@@ -634,6 +717,7 @@ export type Database = {
           created_at?: string
           email_notifications_enabled?: boolean
           id?: string
+          language?: string
           low_stock_alerts_enabled?: boolean
           low_stock_threshold_global?: number | null
           push_notifications_enabled?: boolean
@@ -712,6 +796,16 @@ export type Database = {
         Returns: {
           inventory_count: number
           sales_count: number
+        }[]
+      }
+      get_page_analytics_summary: {
+        Args: { _days?: number }
+        Returns: {
+          avg_duration_ms: number
+          page_path: string
+          page_title: string
+          unique_users: number
+          view_count: number
         }[]
       }
       get_user_role: {
