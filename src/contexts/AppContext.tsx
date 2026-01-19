@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useViewAs } from '@/contexts/ViewAsContext';
 import type { CurrencyUnit } from '@/types/inventory';
+import type { Json } from '@/integrations/supabase/types';
 
 // Types matching the database schema
 export interface DbCategory {
@@ -274,7 +275,7 @@ function mapSale(db: DbSale): Sale {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const { viewAsUser, getEffectiveUserId } = useViewAs();
+  const { viewAsUser, getEffectiveUserId, isViewingAs } = useViewAs();
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [items, setItems] = useState<DbItem[]>([]);
   const [inventoryEntries, setInventoryEntries] = useState<DbInventoryEntry[]>([]);
@@ -284,6 +285,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Get effective user ID for all operations (read and write)
   const effectiveUserId = user ? getEffectiveUserId(user.id) : null;
   const viewAsUserId = viewAsUser?.id || null;
+
+  // Log impersonation action when modifying data
+  const logImpersonationAction = useCallback(async (
+    entityType: 'category' | 'item' | 'inventory' | 'sale',
+    actionType: 'created' | 'updated' | 'deleted',
+    entityId?: string,
+    details?: Record<string, Json>
+  ) => {
+    // Only log if we're actually impersonating someone
+    if (!isViewingAs || !viewAsUser || !user) return;
+
+    try {
+      await supabase
+        .from('admin_activity_logs')
+        .insert([{
+          admin_user_id: user.id,
+          action_type: 'impersonation_action',
+          target_user_id: viewAsUser.id,
+          target_email: viewAsUser.email,
+          details: {
+            action: `${entityType}_${actionType}`,
+            entity_type: entityType,
+            entity_id: entityId || null,
+            target_display_name: viewAsUser.displayName,
+            ...details,
+          } as Json,
+          user_agent: navigator.userAgent,
+        }]);
+    } catch (err) {
+      console.error('Error logging impersonation action:', err);
+    }
+  }, [user, viewAsUser, isViewingAs]);
 
   // Fetch all data
   const fetchData = useCallback(async () => {
@@ -339,17 +372,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addCategory = useCallback(async (name: string) => {
     if (!user || !effectiveUserId) throw new Error('Not authenticated');
     
-    const { error } = await supabase
+    const { data: newCategory, error } = await supabase
       .from('categories')
-      .insert({ user_id: effectiveUserId, name });
+      .insert({ user_id: effectiveUserId, name })
+      .select()
+      .single();
     
     if (error) throw error;
+    
+    // Log if impersonating
+    if (newCategory) {
+      await logImpersonationAction('category', 'created', newCategory.id, { name });
+    }
+    
     await fetchData();
-  }, [user, effectiveUserId, fetchData]);
+  }, [user, effectiveUserId, fetchData, logImpersonationAction]);
 
   // Rename category
   const renameCategory = useCallback(async (id: string, newName: string) => {
     if (!user) throw new Error('Not authenticated');
+    
+    const oldCategory = categories.find(c => c.id === id);
     
     const { error } = await supabase
       .from('categories')
@@ -357,12 +400,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id);
     
     if (error) throw error;
+    
+    // Log if impersonating
+    await logImpersonationAction('category', 'updated', id, { 
+      old_name: oldCategory?.name, 
+      new_name: newName 
+    });
+    
     await fetchData();
-  }, [user, fetchData]);
+  }, [user, categories, fetchData, logImpersonationAction]);
 
   // Delete category
   const deleteCategory = useCallback(async (id: string) => {
     if (!user || !effectiveUserId) throw new Error('Not authenticated');
+    
+    const deletedCategory = categories.find(c => c.id === id);
     
     // Find or create "Other" category
     let otherCategory = categories.find(c => c.name === 'Other');
@@ -390,8 +442,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id);
     
     if (error) throw error;
+    
+    // Log if impersonating
+    await logImpersonationAction('category', 'deleted', id, { 
+      name: deletedCategory?.name 
+    });
+    
     await fetchData();
-  }, [user, effectiveUserId, categories, fetchData]);
+  }, [user, effectiveUserId, categories, fetchData, logImpersonationAction]);
 
   // Add item
   const addItem = useCallback(async (name: string, categoryId: string): Promise<Item> => {
@@ -404,9 +462,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .single();
     
     if (error) throw error;
+    
+    // Log if impersonating
+    if (newItem) {
+      await logImpersonationAction('item', 'created', newItem.id, { name });
+    }
+    
     await fetchData();
     return mapItem(newItem as DbItem);
-  }, [user, effectiveUserId, fetchData]);
+  }, [user, effectiveUserId, fetchData, logImpersonationAction]);
 
   // Get item by ID
   const getItemById = useCallback((id: string) => {
