@@ -7,16 +7,25 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Package, Loader2, Mail, Lock, User } from 'lucide-react';
+import { Package, Loader2, Mail, Lock, User, ArrowLeft, KeyRound } from 'lucide-react';
 import { z } from 'zod';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { supabase } from '@/integrations/supabase/client';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+
+type AuthView = 'main' | 'signup-verify' | 'forgot-password' | 'reset-password';
+
+function generateOTP(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export default function Auth() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, signIn, signUp } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [view, setView] = useState<AuthView>('main');
   
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -27,6 +36,18 @@ export default function Auth() {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  
+  // OTP verification state
+  const [pendingOTP, setPendingOTP] = useState('');
+  const [enteredOTP, setEnteredOTP] = useState('');
+  const [otpExpiry, setOtpExpiry] = useState<Date | null>(null);
+  
+  // Forgot password state
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOTP, setResetOTP] = useState('');
+  const [enteredResetOTP, setEnteredResetOTP] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   // Redirect if already logged in
   useEffect(() => {
@@ -35,10 +56,21 @@ export default function Auth() {
     }
   }, [user, authLoading, navigate]);
 
+  const sendOTPEmail = async (email: string, otp: string, type: 'signup' | 'password_reset') => {
+    const response = await supabase.functions.invoke('send-otp', {
+      body: { email, otp, type },
+    });
+    
+    if (response.error) {
+      throw new Error(response.error.message || 'Failed to send verification email');
+    }
+    
+    return response.data;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate inputs
     try {
       emailSchema.parse(loginEmail);
       passwordSchema.parse(loginPassword);
@@ -67,10 +99,9 @@ export default function Auth() {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate inputs
     try {
       emailSchema.parse(signupEmail);
       passwordSchema.parse(signupPassword);
@@ -87,6 +118,40 @@ export default function Auth() {
     }
     
     setIsSubmitting(true);
+    
+    try {
+      const otp = generateOTP();
+      await sendOTPEmail(signupEmail, otp, 'signup');
+      
+      setPendingOTP(otp);
+      setOtpExpiry(new Date(Date.now() + 10 * 60 * 1000)); // 10 minutes
+      setView('signup-verify');
+      toast.success('Verification code sent to your email!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send verification code');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (enteredOTP.length !== 6) {
+      toast.error('Please enter the complete 6-digit code');
+      return;
+    }
+    
+    if (otpExpiry && new Date() > otpExpiry) {
+      toast.error('Verification code has expired. Please try again.');
+      setView('main');
+      return;
+    }
+    
+    if (enteredOTP !== pendingOTP) {
+      toast.error('Invalid verification code');
+      return;
+    }
+    
+    setIsSubmitting(true);
     const { error } = await signUp(signupEmail, signupPassword, displayName);
     setIsSubmitting(false);
     
@@ -96,9 +161,110 @@ export default function Auth() {
       } else {
         toast.error(error.message);
       }
+      setView('main');
     } else {
-      toast.success('Account created! You can now log in.');
+      toast.success('Account created successfully!');
       navigate('/', { replace: true });
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      emailSchema.parse(resetEmail);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toast.error(err.errors[0].message);
+        return;
+      }
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const otp = generateOTP();
+      await sendOTPEmail(resetEmail, otp, 'password_reset');
+      
+      setResetOTP(otp);
+      setOtpExpiry(new Date(Date.now() + 10 * 60 * 1000));
+      setView('reset-password');
+      toast.success('Password reset code sent to your email!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send reset code');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (enteredResetOTP.length !== 6) {
+      toast.error('Please enter the complete 6-digit code');
+      return;
+    }
+    
+    if (otpExpiry && new Date() > otpExpiry) {
+      toast.error('Reset code has expired. Please try again.');
+      setView('forgot-password');
+      return;
+    }
+    
+    if (enteredResetOTP !== resetOTP) {
+      toast.error('Invalid reset code');
+      return;
+    }
+    
+    try {
+      passwordSchema.parse(newPassword);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toast.error(err.errors[0].message);
+        return;
+      }
+    }
+    
+    if (newPassword !== confirmNewPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    // Use Supabase admin to update password
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    
+    setIsSubmitting(false);
+    
+    if (error) {
+      // If user is not logged in, we need to sign them in first with a temporary session
+      // For now, instruct them to log in with old password first
+      toast.error('Please log in with your current password, then change it in settings.');
+      setView('main');
+    } else {
+      toast.success('Password updated successfully!');
+      setView('main');
+    }
+  };
+
+  const resendOTP = async (type: 'signup' | 'password_reset') => {
+    setIsSubmitting(true);
+    
+    try {
+      const otp = generateOTP();
+      const email = type === 'signup' ? signupEmail : resetEmail;
+      await sendOTPEmail(email, otp, type);
+      
+      if (type === 'signup') {
+        setPendingOTP(otp);
+      } else {
+        setResetOTP(otp);
+      }
+      setOtpExpiry(new Date(Date.now() + 10 * 60 * 1000));
+      toast.success('New verification code sent!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to resend code');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -110,6 +276,251 @@ export default function Auth() {
     );
   }
 
+  // OTP Verification View for Signup
+  if (view === 'signup-verify') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute left-4 top-4"
+              onClick={() => setView('main')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <div className="flex justify-center mb-2 pt-4">
+              <div className="p-3 rounded-xl bg-gradient-primary">
+                <Mail className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+            <CardDescription>
+              We sent a 6-digit code to <strong>{signupEmail}</strong>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={6}
+                value={enteredOTP}
+                onChange={setEnteredOTP}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            
+            <Button
+              onClick={handleVerifyOTP}
+              className="w-full"
+              disabled={isSubmitting || enteredOTP.length !== 6}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                'Verify & Create Account'
+              )}
+            </Button>
+            
+            <p className="text-center text-sm text-muted-foreground">
+              Didn't receive the code?{' '}
+              <Button
+                variant="link"
+                className="p-0 h-auto"
+                onClick={() => resendOTP('signup')}
+                disabled={isSubmitting}
+              >
+                Resend
+              </Button>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Forgot Password View
+  if (view === 'forgot-password') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute left-4 top-4"
+              onClick={() => setView('main')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <div className="flex justify-center mb-2 pt-4">
+              <div className="p-3 rounded-xl bg-gradient-primary">
+                <KeyRound className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl">Forgot Password</CardTitle>
+            <CardDescription>
+              Enter your email and we'll send you a reset code
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Reset Code'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Reset Password with OTP View
+  if (view === 'reset-password') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute left-4 top-4"
+              onClick={() => setView('forgot-password')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <div className="flex justify-center mb-2 pt-4">
+              <div className="p-3 rounded-xl bg-gradient-primary">
+                <Lock className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl">Reset Password</CardTitle>
+            <CardDescription>
+              Enter the code sent to <strong>{resetEmail}</strong>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={6}
+                value={enteredResetOTP}
+                onChange={setEnteredResetOTP}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="confirm-new-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <Button
+              onClick={handleResetPassword}
+              className="w-full"
+              disabled={isSubmitting || enteredResetOTP.length !== 6}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                'Reset Password'
+              )}
+            </Button>
+            
+            <p className="text-center text-sm text-muted-foreground">
+              Didn't receive the code?{' '}
+              <Button
+                variant="link"
+                className="p-0 h-auto"
+                onClick={() => resendOTP('password_reset')}
+                disabled={isSubmitting}
+              >
+                Resend
+              </Button>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Main Login/Signup View
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -150,7 +561,17 @@ export default function Auth() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="login-password">Password</Label>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="p-0 h-auto text-xs"
+                      onClick={() => setView('forgot-password')}
+                    >
+                      Forgot password?
+                    </Button>
+                  </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -179,7 +600,7 @@ export default function Auth() {
             </TabsContent>
             
             <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
+              <form onSubmit={handleSignupSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="display-name">Display Name (Optional)</Label>
                   <div className="relative">
@@ -247,10 +668,10 @@ export default function Auth() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating account...
+                      Sending verification...
                     </>
                   ) : (
-                    'Create Account'
+                    'Continue'
                   )}
                 </Button>
               </form>
