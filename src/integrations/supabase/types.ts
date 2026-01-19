@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_activity_logs: {
+        Row: {
+          action_type: string
+          admin_user_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          target_email: string | null
+          target_user_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_user_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          target_email?: string | null
+          target_user_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_user_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          target_email?: string | null
+          target_user_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       admin_email_allowlist: {
         Row: {
           created_at: string
@@ -32,6 +68,39 @@ export type Database = {
           email?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
+      blacklist: {
+        Row: {
+          blocked_by: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          reason: string | null
+          type: string
+          value: string
+        }
+        Insert: {
+          blocked_by: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          reason?: string | null
+          type: string
+          value: string
+        }
+        Update: {
+          blocked_by?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          reason?: string | null
+          type?: string
+          value?: string
         }
         Relationships: []
       }
@@ -152,6 +221,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email: string | null
           id: string
           updated_at: string
           user_id: string
@@ -160,6 +230,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           id?: string
           updated_at?: string
           user_id: string
@@ -168,6 +239,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           id?: string
           updated_at?: string
           user_id?: string
@@ -263,6 +335,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_admin_user_stats: {
+        Args: { _user_id: string }
+        Returns: {
+          inventory_count: number
+          sales_count: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -273,6 +352,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_blacklisted: {
+        Args: { _device_id?: string; _email: string; _ip?: string }
         Returns: boolean
       }
     }
