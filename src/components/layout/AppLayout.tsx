@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useViewAs } from '@/contexts/ViewAsContext';
 import {
   Package,
   ShoppingCart,
@@ -13,8 +15,8 @@ import {
   X,
   TrendingUp,
   LogOut,
-  User,
   Cloud,
+  Shield,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +33,7 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ElementType;
+  adminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -41,12 +44,18 @@ const navItems: NavItem[] = [
   { label: 'Profit Simulator', href: '/simulate', icon: Calculator },
   { label: 'Categories', href: '/categories', icon: Tags },
   { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Admin Panel', href: '/admin', icon: Shield, adminOnly: true },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { hasAdminAccess, isLoading: roleLoading } = useUserRole();
+  const { isViewingAs } = useViewAs();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Filter nav items based on admin access
+  const filteredNavItems = navItems.filter(item => !item.adminOnly || hasAdminAccess);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -65,7 +74,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={cn("min-h-screen bg-background", isViewingAs && "pt-10")}>
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center justify-between h-full px-4">
@@ -113,7 +122,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm pt-14">
           <nav className="p-4 space-y-1">
-            {navItems.map((item) => (
+            {filteredNavItems.map((item) => (
               <Link
                 key={item.href}
                 to={item.href}
@@ -146,7 +155,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <Link
               key={item.href}
               to={item.href}

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useViewAs } from '@/contexts/ViewAsContext';
 import type { CurrencyUnit } from '@/types/inventory';
 
 // Types matching the database schema
@@ -273,11 +274,15 @@ function mapSale(db: DbSale): Sale {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { viewAsUser } = useViewAs();
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [items, setItems] = useState<DbItem[]>([]);
   const [inventoryEntries, setInventoryEntries] = useState<DbInventoryEntry[]>([]);
   const [sales, setSales] = useState<DbSale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Get effective user ID (for View As feature)
+  const viewAsUserId = viewAsUser?.id || null;
 
   // Fetch all data
   const fetchData = useCallback(async () => {
@@ -293,11 +298,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
 
     try {
+      // If viewing as another user, filter by that user's ID
+      const userIdFilter = viewAsUserId || user.id;
+      
       const [categoriesRes, itemsRes, entriesRes, salesRes] = await Promise.all([
-        supabase.from('categories').select('*').order('created_at', { ascending: true }),
-        supabase.from('items').select('*').order('created_at', { ascending: true }),
-        supabase.from('inventory_entries').select('*').order('bought_at', { ascending: true }),
-        supabase.from('sales').select('*').order('sold_at', { ascending: false }),
+        supabase.from('categories').select('*').eq('user_id', userIdFilter).order('created_at', { ascending: true }),
+        supabase.from('items').select('*').eq('user_id', userIdFilter).order('created_at', { ascending: true }),
+        supabase.from('inventory_entries').select('*').eq('user_id', userIdFilter).order('bought_at', { ascending: true }),
+        supabase.from('sales').select('*').eq('user_id', userIdFilter).order('sold_at', { ascending: false }),
       ]);
 
       setCategories((categoriesRes.data || []) as DbCategory[]);
@@ -312,7 +320,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, viewAsUserId]);
 
   useEffect(() => {
     fetchData();
