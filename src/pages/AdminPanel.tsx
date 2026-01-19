@@ -81,6 +81,7 @@ import { ActivityLogViewer } from '@/components/admin/ActivityLogViewer';
 import { ImpersonationConfirmDialog } from '@/components/admin/ImpersonationConfirmDialog';
 import { FeatureFlagsTab } from '@/components/admin/FeatureFlagsTab';
 import { PageAnalyticsTab } from '@/components/admin/PageAnalyticsTab';
+import { AuthSettingsTab } from '@/components/admin/AuthSettingsTab';
 import { UserFeatureOverridesDialog } from '@/components/admin/UserFeatureOverridesDialog';
 
 interface UserProfile {
@@ -635,6 +636,12 @@ export default function AdminPanel() {
             </TabsTrigger>
           )}
           {currentUserRole === 'owner' && (
+            <TabsTrigger value="auth-settings" className="gap-2">
+              <Shield className="w-4 h-4" />
+              Auth Settings
+            </TabsTrigger>
+          )}
+          {currentUserRole === 'owner' && (
             <TabsTrigger value="allowlist" className="gap-2">
               <Mail className="w-4 h-4" />
               Email Allowlist
@@ -1160,6 +1167,13 @@ export default function AdminPanel() {
         {canManageUsers && (
           <TabsContent value="features">
             <FeatureFlagsTab />
+          </TabsContent>
+        )}
+
+        {/* Auth Settings Tab (Owner only) */}
+        {currentUserRole === 'owner' && (
+          <TabsContent value="auth-settings">
+            <AuthSettingsTab />
           </TabsContent>
         )}
       </Tabs>
