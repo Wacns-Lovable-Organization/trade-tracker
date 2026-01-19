@@ -237,3 +237,69 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 }
+
+/* RTL Support */
+html[dir="rtl"] {
+  /* Flip horizontal margins and paddings for RTL */
+  .ml-auto { margin-left: unset; margin-right: auto; }
+  .mr-auto { margin-right: unset; margin-left: auto; }
+  
+  /* Flip text alignment */
+  .text-left { text-align: right; }
+  .text-right { text-align: left; }
+  
+  /* Flip flex direction for navigation items */
+  .rtl-flip {
+    flex-direction: row-reverse;
+  }
+  
+  /* Flip icon margins */
+  .gap-2 > svg:first-child {
+    margin-left: 0.5rem;
+    margin-right: 0;
+  }
+  
+  /* Flip sidebar position */
+  aside.fixed.left-0 {
+    left: unset;
+    right: 0;
+  }
+  
+  /* Adjust main content for RTL sidebar */
+  main.lg\:pl-64 {
+    padding-left: 0;
+    padding-right: 16rem;
+  }
+  
+  /* Flip border radius for RTL */
+  .rounded-l-lg { border-radius: 0 0.5rem 0.5rem 0; }
+  .rounded-r-lg { border-radius: 0.5rem 0 0 0.5rem; }
+  
+  /* Flip transform for accordions and collapsibles */
+  [data-state="open"] > svg.lucide-chevron-right {
+    transform: rotate(-90deg);
+  }
+  
+  /* Select and dropdown positioning */
+  [role="listbox"] {
+    text-align: right;
+  }
+  
+  /* Table cell alignment */
+  th, td {
+    text-align: right;
+  }
+  
+  th.text-center, td.text-center {
+    text-align: center;
+  }
+  
+  /* Input fields */
+  input, textarea {
+    text-align: right;
+  }
+  
+  input[type="number"] {
+    text-align: left;
+  }
+}
