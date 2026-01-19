@@ -1,17 +1,47 @@
+import { useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { AlertTriangle, Trash2, Info } from 'lucide-react';
+import { AlertTriangle, Trash2, Info, Download, Upload } from 'lucide-react';
+import { exportData, importData } from '@/lib/storage';
 
 export default function Settings() {
-  const { data, resetData } = useApp();
+  const { data, resetData, refreshData } = useApp();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleReset = () => {
     resetData();
     toast.success('All data has been reset');
+  };
+
+  const handleExport = () => {
+    try {
+      exportData();
+      toast.success('Data exported successfully');
+    } catch {
+      toast.error('Failed to export data');
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await importData(file);
+      refreshData();
+      toast.success('Data imported successfully');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to import data');
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -22,8 +52,40 @@ export default function Settings() {
       />
 
       <div className="space-y-6">
-        {/* Info Card */}
+        {/* Import/Export */}
         <Card className="animate-fade-in">
+          <CardHeader>
+            <CardTitle>Data Management</CardTitle>
+            <CardDescription>
+              Export your data as JSON file for backup or import from a previous export.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button onClick={handleExport} variant="outline" className="gap-2">
+              <Download className="w-4 h-4" />
+              Export to JSON
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="hidden"
+              id="import-file"
+            />
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-4 h-4" />
+              Import from JSON
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Info Card */}
+        <Card className="animate-fade-in" style={{ animationDelay: '50ms' }}>
           <CardHeader>
             <div className="flex items-center gap-2">
               <Info className="w-5 h-5 text-primary" />
