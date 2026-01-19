@@ -51,9 +51,9 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <GoogleAnalytics measurementId={GA_MEASUREMENT_ID} />
-            <PageAnalyticsTracker />
             <SkipLinks />
             <AuthProvider>
+              <PageAnalyticsTracker />
               <ViewAsProvider>
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
