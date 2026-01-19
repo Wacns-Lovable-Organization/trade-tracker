@@ -34,7 +34,12 @@ import {
   AlertTriangle,
   FileSpreadsheet,
   CalendarIcon,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  User
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, subMonths, isAfter, isBefore } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -92,22 +97,39 @@ interface ActivityLogViewerProps {
 
 export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
-  const [limitCount, setLimitCount] = useState(50);
+  const [adminFilter, setAdminFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [datePreset, setDatePreset] = useState<string>('all');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const fetchActivityLogs = useCallback(async () => {
     setIsLoading(true);
     try {
+      // First get total count
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const countQuery = (supabase.from('admin_activity_logs') as any)
+        .select('*', { count: 'exact', head: true });
+      
+      const { count } = await countQuery;
+      setTotalCount(count || 0);
+      
+      // Then fetch paginated data
+      const from = (currentPage - 1) * pageSize;
+      const to = from + pageSize - 1;
+      
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from('admin_activity_logs') as any)
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(limitCount);
+        .range(from, to);
 
       if (error) throw error;
       setActivityLogs((data || []) as ActivityLog[]);
@@ -116,11 +138,16 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [limitCount]);
+  }, [currentPage, pageSize]);
 
   useEffect(() => {
     fetchActivityLogs();
   }, [fetchActivityLogs]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, actionFilter, adminFilter, startDate, endDate]);
 
   // Apply date preset
   const applyDatePreset = useCallback((preset: string) => {
@@ -163,6 +190,11 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
     setDatePreset('all');
   }, []);
 
+  // Get unique admin users who have performed actions
+  const adminUsers = [...new Set(activityLogs.map(log => log.admin_user_id))]
+    .map(id => users.find(u => u.user_id === id))
+    .filter((u): u is UserProfile => u !== undefined);
+
   const filteredLogs = activityLogs.filter(log => {
     const matchesSearch = searchQuery === '' ||
       log.action_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -173,13 +205,24 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
       log.action_type === actionFilter ||
       (actionFilter === 'impersonation' && log.action_type.startsWith('impersonation'));
 
+    const matchesAdmin = adminFilter === 'all' || log.admin_user_id === adminFilter;
+
     const logDate = new Date(log.created_at);
     const matchesDateRange = 
       (!startDate || !isBefore(logDate, startDate)) &&
       (!endDate || !isAfter(logDate, endDate));
 
-    return matchesSearch && matchesAction && matchesDateRange;
+    return matchesSearch && matchesAction && matchesAdmin && matchesDateRange;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const canGoPrevious = currentPage > 1;
+  const canGoNext = currentPage < totalPages;
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
 
   const getActionConfig = (actionType: string) => {
     return ACTION_CONFIG[actionType] || { label: actionType, icon: Edit, variant: 'outline' as const };
@@ -321,19 +364,63 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={String(limitCount)} onValueChange={(v) => setLimitCount(Number(v))}>
+
+              {/* Admin User Filter */}
+              <Select value={adminFilter} onValueChange={setAdminFilter}>
+                <SelectTrigger className="w-48">
+                  <User className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Filter by admin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Admins</SelectItem>
+                  {adminUsers.map(admin => (
+                    <SelectItem key={admin.user_id} value={admin.user_id}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={admin.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {(admin.display_name || 'A')[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{admin.display_name || 'Unknown'}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Page Size */}
+              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
                 <SelectTrigger className="w-24">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
                   <SelectItem value="25">25</SelectItem>
                   <SelectItem value="50">50</SelectItem>
                   <SelectItem value="100">100</SelectItem>
-                  <SelectItem value="250">250</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {/* Active admin filter indicator */}
+          {adminFilter !== 'all' && (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                <User className="w-3 h-3 mr-1" />
+                Admin: {users.find(u => u.user_id === adminFilter)?.display_name || 'Unknown'}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAdminFilter('all')}
+                  className="h-4 w-4 p-0 ml-1 hover:bg-transparent"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            </div>
+          )}
 
           {/* Date Range Filter */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
@@ -536,8 +623,70 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
           </div>
         )}
 
-        <div className="text-sm text-muted-foreground text-center">
-          Showing {filteredLogs.length} of {activityLogs.length} logs
+        {/* Pagination Controls */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            Showing {filteredLogs.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} - {Math.min(currentPage * pageSize, totalCount)} of {totalCount} logs
+            {(searchQuery || actionFilter !== 'all' || adminFilter !== 'all' || startDate || endDate) && 
+              ` (${filteredLogs.length} matching filters)`
+            }
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(1)}
+              disabled={!canGoPrevious || isLoading}
+              className="hidden sm:flex"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={!canGoPrevious || isLoading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Previous</span>
+            </Button>
+            
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-medium">Page</span>
+              <Input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={currentPage}
+                onChange={(e) => {
+                  const page = parseInt(e.target.value);
+                  if (!isNaN(page)) goToPage(page);
+                }}
+                className="w-16 h-8 text-center"
+              />
+              <span className="text-sm text-muted-foreground">of {totalPages || 1}</span>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={!canGoNext || isLoading}
+            >
+              <span className="hidden sm:inline mr-1">Next</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(totalPages)}
+              disabled={!canGoNext || isLoading}
+              className="hidden sm:flex"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
