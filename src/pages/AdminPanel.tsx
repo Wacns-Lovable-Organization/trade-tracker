@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole, type AppRole } from '@/hooks/useUserRole';
 import { useViewAs } from '@/contexts/ViewAsContext';
+import { useRoleHierarchy } from '@/hooks/useRoleHierarchy';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -66,13 +68,16 @@ import {
   Filter,
   RefreshCw,
   LayoutDashboard,
-  Smartphone
+  Smartphone,
+  ShieldOff
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { DevicesTab } from '@/components/admin/DevicesTab';
+import { ActivityLogViewer } from '@/components/admin/ActivityLogViewer';
+import { ImpersonationConfirmDialog } from '@/components/admin/ImpersonationConfirmDialog';
 
 interface UserProfile {
   id: string;
@@ -149,14 +154,18 @@ export default function AdminPanel() {
   const { user } = useAuth();
   const { role: currentUserRole, hasAdminAccess, isLoading: roleLoading, canManageRole } = useUserRole();
   const { setViewAsUser } = useViewAs();
+  const { canImpersonate, getImpersonationBlockReason } = useRoleHierarchy();
   
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [allowlist, setAllowlist] = useState<AllowlistEntry[]>([]);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [blacklist, setBlacklist] = useState<BlacklistEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  
+  // Impersonation confirmation dialog state
+  const [impersonationTarget, setImpersonationTarget] = useState<UserProfile | null>(null);
+  const [showImpersonationConfirm, setShowImpersonationConfirm] = useState(false);
   
   // Form states
   const [newAllowlistEmail, setNewAllowlistEmail] = useState('');
@@ -249,22 +258,6 @@ export default function AdminPanel() {
     }
   };
 
-  // Fetch activity logs
-  const fetchActivityLogs = async () => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('admin_activity_logs') as any)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-      setActivityLogs((data || []) as ActivityLog[]);
-    } catch (error) {
-      console.error('Error fetching activity logs:', error);
-    }
-  };
-
   // Fetch blacklist
   const fetchBlacklist = async () => {
     try {
@@ -284,7 +277,6 @@ export default function AdminPanel() {
     if (!roleLoading && hasAdminAccess) {
       fetchUsers();
       fetchAllowlist();
-      fetchActivityLogs();
       fetchBlacklist();
     }
   }, [roleLoading, hasAdminAccess, currentUserRole]);
@@ -323,7 +315,6 @@ export default function AdminPanel() {
       toast.success('Email added to allowlist');
       setNewAllowlistEmail('');
       fetchAllowlist();
-      fetchActivityLogs();
     } catch (error: unknown) {
       const err = error as { code?: string };
       if (err.code === '23505') {
@@ -347,7 +338,6 @@ export default function AdminPanel() {
       await logAction('allowlist_removed', undefined, email);
       toast.success('Email removed from allowlist');
       fetchAllowlist();
-      fetchActivityLogs();
     } catch (error) {
       toast.error('Failed to remove email');
     }
@@ -384,7 +374,6 @@ export default function AdminPanel() {
       setSelectedUser(null);
       setNewRole('');
       fetchUsers();
-      fetchActivityLogs();
     } catch (error) {
       toast.error('Failed to update role');
     }
@@ -405,21 +394,37 @@ export default function AdminPanel() {
       await logAction('role_removed', userId, userName, { previous_role: targetUser?.role });
       toast.success('Role removed');
       fetchUsers();
-      fetchActivityLogs();
     } catch (error) {
       toast.error('Failed to remove role');
     }
   };
 
-  // View as user
-  const handleViewAs = (profile: UserProfile) => {
-    logAction('view_as', profile.user_id, profile.display_name || undefined);
+  // View as user - opens confirmation dialog
+  const handleViewAsClick = (profile: UserProfile) => {
+    // Check if impersonation is allowed based on role hierarchy
+    const blockReason = getImpersonationBlockReason(currentUserRole, profile.role);
+    if (blockReason) {
+      toast.error(blockReason);
+      return;
+    }
+    
+    setImpersonationTarget(profile);
+    setShowImpersonationConfirm(true);
+  };
+
+  // Confirm impersonation and start
+  const confirmImpersonation = () => {
+    if (!impersonationTarget) return;
+    
+    logAction('view_as', impersonationTarget.user_id, impersonationTarget.display_name || undefined);
     setViewAsUser({
-      id: profile.user_id,
-      email: profile.email || profile.display_name || 'User',
-      displayName: profile.display_name,
+      id: impersonationTarget.user_id,
+      email: impersonationTarget.email || impersonationTarget.display_name || 'User',
+      displayName: impersonationTarget.display_name,
     });
-    toast.success(`Now impersonating ${profile.display_name || profile.email || 'User'} - you can browse and edit their data`);
+    toast.success(`Now impersonating ${impersonationTarget.display_name || impersonationTarget.email || 'User'} - you can browse and edit their data`);
+    setShowImpersonationConfirm(false);
+    setImpersonationTarget(null);
     navigate('/');
   };
 
@@ -465,7 +470,6 @@ export default function AdminPanel() {
       await logAction('data_exported', profile.user_id, profile.display_name || undefined);
       toast.dismiss();
       toast.success('User data exported successfully');
-      fetchActivityLogs();
     } catch (error) {
       toast.dismiss();
       toast.error('Failed to export user data');
@@ -502,7 +506,6 @@ export default function AdminPanel() {
       setBlacklistReason('');
       setBlacklistExpiry('');
       fetchBlacklist();
-      fetchActivityLogs();
     } catch (error: unknown) {
       const err = error as { code?: string };
       if (err.code === '23505') {
@@ -526,7 +529,6 @@ export default function AdminPanel() {
       await logAction('user_unblacklisted', undefined, entry.value, { type: entry.type });
       toast.success('Removed from blacklist');
       fetchBlacklist();
-      fetchActivityLogs();
     } catch (error) {
       toast.error('Failed to remove from blacklist');
     }
@@ -760,15 +762,35 @@ export default function AdminPanel() {
 
                               {/* View As Button */}
                               {profile.user_id !== user?.id && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewAs(profile)}
-                                  className="gap-1"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                  View As
-                                </Button>
+                                (() => {
+                                  const blockReason = getImpersonationBlockReason(currentUserRole, profile.role);
+                                  return blockReason ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="gap-1 opacity-50 cursor-not-allowed"
+                                          disabled
+                                        >
+                                          <ShieldOff className="w-4 h-4" />
+                                          View As
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>{blockReason}</TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewAsClick(profile)}
+                                      className="gap-1"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                      View As
+                                    </Button>
+                                  );
+                                })()
                               )}
 
                               {/* Role Management */}
@@ -894,74 +916,7 @@ export default function AdminPanel() {
 
         {/* Activity Logs Tab */}
         <TabsContent value="activity">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <History className="w-5 h-5" />
-                    Activity Logs
-                  </CardTitle>
-                  <CardDescription>
-                    Track all admin actions and changes
-                  </CardDescription>
-                </div>
-                <Button variant="outline" size="sm" onClick={fetchActivityLogs}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {activityLogs.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  No activity logs yet
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {activityLogs.map((log) => {
-                    const adminUser = users.find(u => u.user_id === log.admin_user_id);
-                    const targetUser = log.target_user_id ? users.find(u => u.user_id === log.target_user_id) : null;
-                    
-                    return (
-                      <div key={log.id} className="flex items-start gap-4 p-4 rounded-lg border bg-card">
-                        <div className="flex-shrink-0">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={adminUser?.avatar_url || undefined} />
-                            <AvatarFallback>
-                              {(adminUser?.display_name || 'A')[0].toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium">{adminUser?.display_name || 'Unknown Admin'}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {ACTION_LABELS[log.action_type] || log.action_type}
-                            </Badge>
-                          </div>
-                          {(targetUser || log.target_email) && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Target: {targetUser?.display_name || log.target_email || 'Unknown'}
-                            </p>
-                          )}
-                          {Object.keys(log.details || {}).length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {JSON.stringify(log.details)}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground flex-shrink-0">
-                          <Clock className="w-3 h-3 inline mr-1" />
-                          {format(new Date(log.created_at), 'MMM d, yyyy HH:mm')}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ActivityLogViewer users={users.map(u => ({ user_id: u.user_id, display_name: u.display_name, avatar_url: u.avatar_url }))} />
         </TabsContent>
 
         {/* Blacklist Tab */}
@@ -1191,6 +1146,14 @@ export default function AdminPanel() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Impersonation Confirmation Dialog */}
+      <ImpersonationConfirmDialog
+        open={showImpersonationConfirm}
+        onOpenChange={setShowImpersonationConfirm}
+        user={impersonationTarget}
+        onConfirm={confirmImpersonation}
+      />
     </div>
   );
 }
