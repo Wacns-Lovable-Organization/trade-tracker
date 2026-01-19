@@ -53,7 +53,8 @@ export default function Auth() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
-  const useResendOTP = settings.auth_method.method === 'resend';
+  // Determine auth method - only access when settings are loaded
+  const useResendOTP = !settingsLoading && settings.auth_method?.method === 'resend';
 
   // Check for password reset token in URL
   useEffect(() => {
