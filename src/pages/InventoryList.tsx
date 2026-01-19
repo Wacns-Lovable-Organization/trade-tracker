@@ -48,6 +48,7 @@ export default function InventoryList() {
           totalPurchasedQty: entry.quantityBought,
           lifetimeTotalCost: entry.quantityBought * entry.unitCost,
           currency: entry.currencyUnit,
+          imageUrl: item.imageUrl,
         });
       }
     });

@@ -1,4 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { ChevronRight, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -13,6 +14,7 @@ export interface GroupedItem {
   totalPurchasedQty: number;
   lifetimeTotalCost: number;
   currency: CurrencyUnit | null;
+  imageUrl?: string | null;
 }
 
 interface GroupedItemCardProps {
@@ -35,9 +37,12 @@ export function GroupedItemCard({ item, onClick, selected, showArrow = false, cl
     >
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Package className="w-5 h-5 text-primary" />
-          </div>
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={item.imageUrl || undefined} alt={item.name} />
+            <AvatarFallback className="bg-primary/10">
+              <Package className="w-5 h-5 text-primary" />
+            </AvatarFallback>
+          </Avatar>
           
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold truncate">{item.name}</h3>
