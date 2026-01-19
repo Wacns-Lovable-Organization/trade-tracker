@@ -389,9 +389,17 @@ export type Database = {
           active_users: number
           online_users: number
           total_inventory: number
-          total_revenue: number
           total_sales: number
           total_users: number
+        }[]
+      }
+      get_admin_profit_by_currency: {
+        Args: never
+        Returns: {
+          currency_unit: string
+          sale_count: number
+          total_profit: number
+          total_revenue: number
         }[]
       }
       get_admin_sales_trends: {

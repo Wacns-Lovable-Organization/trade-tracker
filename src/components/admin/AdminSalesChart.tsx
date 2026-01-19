@@ -65,14 +65,14 @@ export function AdminSalesChart({ data }: AdminSalesChartProps) {
             tick={{ fontSize: 12 }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(value) => `₱${value.toLocaleString()}`}
+            tickFormatter={(value) => value.toLocaleString()}
           />
           <ChartTooltip
             content={
               <ChartTooltipContent
                 formatter={(value, name) => (
                   <span>
-                    {name === 'revenue' ? 'Revenue' : 'Profit'}: ₱{Number(value).toLocaleString()}
+                    {name === 'revenue' ? 'Revenue' : 'Profit'}: {Number(value).toLocaleString()}
                   </span>
                 )}
               />
