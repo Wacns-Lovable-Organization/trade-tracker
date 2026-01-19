@@ -25,10 +25,13 @@ import {
   Plus,
   Ban,
   UserX,
-  AlertTriangle
+  AlertTriangle,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 
 interface ActivityLog {
   id: string;
@@ -145,6 +148,64 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
 
   const uniqueActionTypes = [...new Set(activityLogs.map(log => log.action_type))];
 
+  // Export logs as CSV
+  const exportAsCSV = useCallback(() => {
+    if (filteredLogs.length === 0) {
+      toast.error('No logs to export');
+      return;
+    }
+
+    const headers = [
+      'Date',
+      'Time',
+      'Admin',
+      'Admin ID',
+      'Action',
+      'Target User',
+      'Target Email',
+      'Target ID',
+      'Details',
+      'User Agent',
+      'IP Address'
+    ];
+
+    const rows = filteredLogs.map(log => {
+      const adminUser = users.find(u => u.user_id === log.admin_user_id);
+      const config = getActionConfig(log.action_type);
+      
+      return [
+        format(new Date(log.created_at), 'yyyy-MM-dd'),
+        format(new Date(log.created_at), 'HH:mm:ss'),
+        adminUser?.display_name || 'Unknown',
+        log.admin_user_id,
+        config.label,
+        log.target_email || '',
+        log.target_email || '',
+        log.target_user_id || '',
+        JSON.stringify(log.details || {}).replace(/"/g, '""'),
+        (log.user_agent || '').replace(/"/g, '""'),
+        log.ip_address || ''
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `admin-activity-logs-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success(`Exported ${filteredLogs.length} logs to CSV`);
+  }, [filteredLogs, users]);
+
   return (
     <Card>
       <CardHeader>
@@ -158,10 +219,16 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
               Track all admin actions including impersonation and data modifications
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchActivityLogs} disabled={isLoading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={exportAsCSV} disabled={filteredLogs.length === 0}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchActivityLogs} disabled={isLoading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
