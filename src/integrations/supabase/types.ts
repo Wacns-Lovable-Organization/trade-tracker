@@ -187,6 +187,7 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          low_stock_threshold: number | null
           name: string
           user_id: string
         }
@@ -195,6 +196,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          low_stock_threshold?: number | null
           name: string
           user_id: string
         }
@@ -203,6 +205,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          low_stock_threshold?: number | null
           name?: string
           user_id?: string
         }
@@ -252,6 +255,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          grow_id: string | null
           id: string
           updated_at: string
           user_id: string
@@ -261,6 +265,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          grow_id?: string | null
           id?: string
           updated_at?: string
           user_id: string
@@ -270,6 +275,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          grow_id?: string | null
           id?: string
           updated_at?: string
           user_id?: string
@@ -328,6 +334,90 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      supplier_items: {
+        Row: {
+          created_at: string
+          currency_unit: string
+          id: string
+          item_id: string
+          lead_time_days: number | null
+          notes: string | null
+          quantity_per_unit: number
+          supplier_id: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency_unit?: string
+          id?: string
+          item_id: string
+          lead_time_days?: number | null
+          notes?: string | null
+          quantity_per_unit?: number
+          supplier_id: string
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency_unit?: string
+          id?: string
+          item_id?: string
+          lead_time_days?: number | null
+          notes?: string | null
+          quantity_per_unit?: number
+          supplier_id?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_items_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          created_at: string
+          grow_id: string
+          id: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+          world: string
+        }
+        Insert: {
+          created_at?: string
+          grow_id: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+          world: string
+        }
+        Update: {
+          created_at?: string
+          grow_id?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+          world?: string
+        }
+        Relationships: []
       }
       user_devices: {
         Row: {
@@ -397,6 +487,42 @@ export type Database = {
           assigned_by?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          email_notifications_enabled: boolean
+          id: string
+          low_stock_alerts_enabled: boolean
+          low_stock_threshold_global: number | null
+          push_notifications_enabled: boolean
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_notifications_enabled?: boolean
+          id?: string
+          low_stock_alerts_enabled?: boolean
+          low_stock_threshold_global?: number | null
+          push_notifications_enabled?: boolean
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_notifications_enabled?: boolean
+          id?: string
+          low_stock_alerts_enabled?: boolean
+          low_stock_threshold_global?: number | null
+          push_notifications_enabled?: boolean
+          theme?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
