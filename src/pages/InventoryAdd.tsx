@@ -22,7 +22,7 @@ const currencyOptions: { value: CurrencyUnit; label: string }[] = [
 
 export default function InventoryAdd() {
   const navigate = useNavigate();
-  const { data, addItem, addInventoryEntry } = useApp();
+  const { data, addInventoryEntry, addItemWithInventoryEntry } = useApp();
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [itemName, setItemName] = useState('');
@@ -80,32 +80,33 @@ export default function InventoryAdd() {
     }
 
     try {
-      let itemId = selectedItemId;
-
-      // Create new item if needed
-      if (!itemId || itemId === '__new__') {
-        const existingItem = data.items.find(
-          i => i.name.toLowerCase() === itemName.trim().toLowerCase()
+      // If an existing item is selected, use addInventoryEntry
+      // Otherwise, use the atomic addItemWithInventoryEntry
+      if (selectedItemId && selectedItemId !== '__new__') {
+        addInventoryEntry(
+          selectedItemId,
+          itemName.trim(),
+          categoryId,
+          qty,
+          cost,
+          currencyUnit,
+          notes,
+          new Date(boughtAt).toISOString()
         );
-        if (existingItem) {
-          itemId = existingItem.id;
-        } else {
-          const newItem = addItem(itemName.trim(), categoryId);
-          itemId = newItem.id;
-        }
+      } else {
+        // This atomically creates the item (if needed) and inventory entry
+        addItemWithInventoryEntry(
+          itemName.trim(),
+          categoryId,
+          itemName.trim(),
+          categoryId,
+          qty,
+          cost,
+          currencyUnit,
+          notes,
+          new Date(boughtAt).toISOString()
+        );
       }
-
-      // Add inventory entry
-      addInventoryEntry(
-        itemId,
-        itemName.trim(),
-        categoryId,
-        qty,
-        cost,
-        currencyUnit,
-        notes,
-        new Date(boughtAt).toISOString()
-      );
 
       toast.success('Inventory entry added');
       navigate('/inventory');

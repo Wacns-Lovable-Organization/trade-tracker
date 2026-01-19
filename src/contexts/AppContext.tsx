@@ -27,6 +27,19 @@ interface AppContextType {
     boughtAt?: string
   ) => void;
   
+  // Combined: add item + inventory entry atomically
+  addItemWithInventoryEntry: (
+    name: string,
+    categoryId: string,
+    snapshotName: string,
+    snapshotCategoryId: string,
+    quantityBought: number,
+    unitCost: number,
+    currencyUnit: CurrencyUnit,
+    notes?: string,
+    boughtAt?: string
+  ) => Item;
+  
   // Sales
   addSale: (
     inventoryEntryId: string,
@@ -85,6 +98,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getItemById = useCallback((id: string) => {
     return data.items.find(i => i.id === id);
   }, [data]);
+  
+  // Combined function to add item and inventory entry atomically
+  const addItemWithInventoryEntry = useCallback((
+    name: string,
+    categoryId: string,
+    snapshotName: string,
+    snapshotCategoryId: string,
+    quantityBought: number,
+    unitCost: number,
+    currencyUnit: CurrencyUnit,
+    notes?: string,
+    boughtAt?: string
+  ): Item => {
+    // First check if item already exists
+    const existingItem = data.items.find(
+      i => i.name.toLowerCase() === name.trim().toLowerCase()
+    );
+    
+    let workingData = data;
+    let item: Item;
+    
+    if (existingItem) {
+      item = existingItem;
+    } else {
+      // Add the item first
+      workingData = storage.addItem(data, name, categoryId);
+      item = workingData.items[workingData.items.length - 1];
+    }
+    
+    // Then add inventory entry using the updated data
+    const finalData = storage.addInventoryEntry(
+      workingData,
+      item.id,
+      snapshotName,
+      snapshotCategoryId,
+      quantityBought,
+      unitCost,
+      currencyUnit,
+      notes,
+      boughtAt
+    );
+    
+    updateData(finalData);
+    return item;
+  }, [data, updateData]);
   
   const addInventoryEntry = useCallback((
     itemId: string,
@@ -161,6 +219,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addItem,
         getItemById,
         addInventoryEntry,
+        addItemWithInventoryEntry,
         addSale,
         getDistinctAvailableItems,
         getAvailableEntriesForItem,
