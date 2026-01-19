@@ -1,6 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
-import { Badge } from '@/components/ui/badge';
 import { ChevronRight, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CurrencyUnit } from '@/types/inventory';
@@ -10,10 +9,10 @@ export interface GroupedItem {
   name: string;
   categoryId: string;
   categoryName: string;
-  totalQuantity: number;
-  openEntries: number;
-  // Values by currency
-  valueByCurrency: { currency: CurrencyUnit; total: number }[];
+  remainingQty: number;
+  totalPurchasedQty: number;
+  lifetimeTotalCost: number;
+  currency: CurrencyUnit | null;
 }
 
 interface GroupedItemCardProps {
@@ -44,14 +43,21 @@ export function GroupedItemCard({ item, onClick, selected, showArrow = false, cl
             <h3 className="font-semibold truncate">{item.name}</h3>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
               <span>{item.categoryName}</span>
-              <span>•</span>
-              <span>{item.openEntries} {item.openEntries === 1 ? 'batch' : 'batches'}</span>
             </div>
           </div>
 
           <div className="text-right">
-            <div className="font-mono font-semibold text-lg">{item.totalQuantity}</div>
-            <div className="text-xs text-muted-foreground">available</div>
+            <div className="font-mono font-semibold text-lg">
+              {item.remainingQty} <span className="text-muted-foreground text-sm font-normal">of {item.totalPurchasedQty}</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              <CurrencyDisplay 
+                amount={item.lifetimeTotalCost} 
+                currency={item.currency} 
+                size="sm"
+              />
+              {' total cost'}
+            </div>
           </div>
 
           {showArrow && (

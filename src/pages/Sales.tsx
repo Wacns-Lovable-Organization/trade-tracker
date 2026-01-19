@@ -39,37 +39,48 @@ export default function Sales() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyItem, setHistoryItem] = useState<typeof data.items[0] | null>(null);
 
-  // Group items by ID and sum quantities
+  // Group items by ID and calculate lifetime totals
   const groupedItems = useMemo(() => {
     const itemMap = new Map<string, GroupedItem>();
 
-    data.inventoryEntries
-      .filter(e => e.status === 'OPEN' && e.remainingQty > 0)
-      .forEach(entry => {
-        const item = data.items.find(i => i.id === entry.itemId);
-        if (!item) return;
+    // First pass: calculate lifetime totals from inventory
+    data.inventoryEntries.forEach(entry => {
+      const item = data.items.find(i => i.id === entry.itemId);
+      if (!item) return;
 
-        const existing = itemMap.get(item.id);
-        const category = data.categories.find(c => c.id === entry.snapshotCategoryId);
+      const existing = itemMap.get(item.id);
+      const category = data.categories.find(c => c.id === entry.snapshotCategoryId);
 
-        if (existing) {
-          existing.totalQuantity += entry.remainingQty;
-          existing.openEntries += 1;
-        } else {
-          itemMap.set(item.id, {
-            id: item.id,
-            name: item.name,
-            categoryId: entry.snapshotCategoryId,
-            categoryName: category?.name || 'Other',
-            totalQuantity: entry.remainingQty,
-            openEntries: 1,
-            valueByCurrency: [],
-          });
-        }
-      });
+      if (existing) {
+        existing.totalPurchasedQty += entry.quantityBought;
+        existing.lifetimeTotalCost += entry.quantityBought * entry.unitCost;
+      } else {
+        itemMap.set(item.id, {
+          id: item.id,
+          name: item.name,
+          categoryId: entry.snapshotCategoryId,
+          categoryName: category?.name || 'Other',
+          remainingQty: 0,
+          totalPurchasedQty: entry.quantityBought,
+          lifetimeTotalCost: entry.quantityBought * entry.unitCost,
+          currency: entry.currencyUnit,
+        });
+      }
+    });
 
-    return Array.from(itemMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [data.inventoryEntries, data.items, data.categories]);
+    // Second pass: calculate remaining qty (totalPurchased - totalSold)
+    itemMap.forEach((groupedItem, itemId) => {
+      const totalSold = data.sales
+        .filter(s => s.itemId === itemId)
+        .reduce((sum, s) => sum + s.quantitySold, 0);
+      groupedItem.remainingQty = groupedItem.totalPurchasedQty - totalSold;
+    });
+
+    // Only show items with remaining qty > 0
+    return Array.from(itemMap.values())
+      .filter(item => item.remainingQty > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [data.inventoryEntries, data.items, data.categories, data.sales]);
 
   // Filter by search
   const filteredItems = useMemo(() => {
@@ -110,11 +121,15 @@ export default function Sales() {
     setHistoryOpen(true);
   };
 
-  // Calculate profit preview using weighted average cost
+  // Calculate profit preview using lifetime average cost
   const qty = parseInt(quantitySold, 10) || 0;
   const amount = parseFloat(amountGained) || 0;
   
-  const estimatedCost = selectedItemInfo ? selectedItemInfo.avgCost * qty : 0;
+  // Cost = (lifetimeTotalCost / totalPurchasedQty) * qty
+  const avgCost = selectedItemInfo && selectedItemInfo.totalPurchasedQty > 0 
+    ? selectedItemInfo.lifetimeTotalCost / selectedItemInfo.totalPurchasedQty 
+    : 0;
+  const estimatedCost = avgCost * qty;
   const sameCurrency = selectedItemInfo?.currency === currencyUnit;
   const profit = sameCurrency ? amount - estimatedCost : null;
 
@@ -232,7 +247,7 @@ export default function Sales() {
                     </Button>
                     <span className="font-medium">{selectedItem?.name}</span>
                     <span className="text-muted-foreground">
-                      • {selectedItemInfo?.quantity} available
+                      • {selectedItemInfo?.remainingQty} of {selectedItemInfo?.totalPurchasedQty} remaining
                     </span>
                     <Button
                       type="button"
@@ -253,11 +268,11 @@ export default function Sales() {
                         id="quantity"
                         type="number"
                         min="1"
-                        max={selectedItemInfo?.quantity}
+                        max={selectedItemInfo?.remainingQty}
                         step="1"
                         value={quantitySold}
                         onChange={(e) => setQuantitySold(e.target.value)}
-                        placeholder={`Max: ${selectedItemInfo?.quantity}`}
+                        placeholder={`Max: ${selectedItemInfo?.remainingQty}`}
                         required
                       />
                     </div>

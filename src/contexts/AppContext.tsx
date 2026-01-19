@@ -151,7 +151,12 @@ interface AppContextType {
   // Utilities
   getDistinctAvailableItems: () => Item[];
   getAvailableEntriesForItem: (itemId: string) => InventoryEntry[];
-  getTotalAvailableForItem: (itemId: string) => { quantity: number; totalCost: number; avgCost: number; currency: CurrencyUnit | null };
+  getTotalAvailableForItem: (itemId: string) => { 
+    remainingQty: number; 
+    totalPurchasedQty: number; 
+    lifetimeTotalCost: number; 
+    currency: CurrencyUnit | null;
+  };
   simulateProfit: (itemId: string, simulateQty: number, sellUnitPrice: number) => SimulationResult;
   calculateSaleProfit: (sale: Sale) => number;
   
@@ -455,27 +460,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => new Date(a.boughtAt).getTime() - new Date(b.boughtAt).getTime());
   }, [data.inventoryEntries]);
 
-  // Get total available quantity and cost for an item (weighted average)
+  // Get lifetime totals for an item (cost never decreases, tracks all-time quantities)
   const getTotalAvailableForItem = useCallback((itemId: string) => {
-    const entries = inventoryEntries
-      .filter(e => e.item_id === itemId && e.status === 'OPEN' && e.remaining_qty > 0);
+    // All entries for this item (for lifetime totals)
+    const allEntries = inventoryEntries.filter(e => e.item_id === itemId);
     
-    let totalQty = 0;
-    let totalCost = 0;
+    // Calculate lifetime total cost and total purchased qty (never changes after purchase)
+    let lifetimeTotalCost = 0;
+    let totalPurchasedQty = 0;
     let currency: CurrencyUnit | null = null;
 
-    for (const entry of entries) {
-      totalQty += entry.remaining_qty;
-      totalCost += entry.remaining_qty * Number(entry.unit_cost);
+    for (const entry of allEntries) {
+      totalPurchasedQty += entry.quantity_bought;
+      lifetimeTotalCost += entry.quantity_bought * Number(entry.unit_cost);
       if (!currency) currency = entry.currency_unit as CurrencyUnit;
     }
 
-    const avgCost = totalQty > 0 ? totalCost / totalQty : 0;
+    // Calculate total sold from sales table
+    const totalSold = sales
+      .filter(s => s.item_id === itemId)
+      .reduce((sum, s) => sum + s.quantity_sold, 0);
 
-    return { quantity: totalQty, totalCost, avgCost, currency };
-  }, [inventoryEntries]);
+    const remainingQty = totalPurchasedQty - totalSold;
 
-  // Record sale using weighted average cost (simpler logic)
+    return { remainingQty, totalPurchasedQty, lifetimeTotalCost, currency };
+  }, [inventoryEntries, sales]);
+
+  // Record sale - simple logic: profit = revenue - (lifetime_total_cost / total_purchased_qty * qty_sold)
   const addSaleByItem = useCallback(async (
     itemId: string,
     quantitySold: number,
@@ -486,59 +497,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!user) throw new Error('Not authenticated');
     
-    // Get all available entries for this item
-    const availableEntries = inventoryEntries
-      .filter(e => e.item_id === itemId && e.status === 'OPEN' && e.remaining_qty > 0)
-      .sort((a, b) => new Date(a.bought_at).getTime() - new Date(b.bought_at).getTime());
+    // Get lifetime totals for this item
+    const itemInfo = getTotalAvailableForItem(itemId);
     
-    const totalAvailable = availableEntries.reduce((sum, e) => sum + e.remaining_qty, 0);
-    const totalCost = availableEntries.reduce((sum, e) => sum + e.remaining_qty * Number(e.unit_cost), 0);
-    
-    if (quantitySold > totalAvailable) {
-      throw new Error(`Cannot sell more than ${totalAvailable} available`);
+    if (quantitySold > itemInfo.remainingQty) {
+      throw new Error(`Cannot sell more than ${itemInfo.remainingQty} available`);
     }
     
-    // Calculate using weighted average cost
-    const avgCost = totalAvailable > 0 ? totalCost / totalAvailable : 0;
+    // Calculate cost using lifetime average: totalCost / totalPurchasedQty
+    const avgCost = itemInfo.totalPurchasedQty > 0 
+      ? itemInfo.lifetimeTotalCost / itemInfo.totalPurchasedQty 
+      : 0;
     const costOfGoodsSold = avgCost * quantitySold;
     const profit = amountGained - costOfGoodsSold;
     
-    // Deduct quantity from entries (oldest first, but cost is averaged)
-    let qtyRemaining = quantitySold;
-    const costBreakdown: CostBreakdownItem[] = [];
-    const entryUpdates: { id: string; newQty: number }[] = [];
+    // Simple cost breakdown for record keeping
+    const costBreakdown: CostBreakdownItem[] = [{
+      entryId: 'lifetime-avg',
+      unitCost: avgCost,
+      qtyUsed: quantitySold,
+    }];
     
-    for (const entry of availableEntries) {
-      if (qtyRemaining <= 0) break;
-      
-      const qtyFromEntry = Math.min(qtyRemaining, entry.remaining_qty);
-      
-      costBreakdown.push({
-        entryId: entry.id,
-        unitCost: avgCost, // Use average cost, not individual entry cost
-        qtyUsed: qtyFromEntry,
-      });
-      
-      entryUpdates.push({
-        id: entry.id,
-        newQty: entry.remaining_qty - qtyFromEntry,
-      });
-      
-      qtyRemaining -= qtyFromEntry;
-    }
-    
-    // Update all affected inventory entries
-    for (const update of entryUpdates) {
-      await supabase
-        .from('inventory_entries')
-        .update({
-          remaining_qty: update.newQty,
-          status: update.newQty === 0 ? 'CLOSED' : 'OPEN',
-        })
-        .eq('id', update.id);
-    }
-    
-    // Create sale record
+    // Create sale record (no need to update inventory entries anymore - we track via sales)
     const { error } = await supabase
       .from('sales')
       .insert({
@@ -556,7 +536,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     if (error) throw error;
     await fetchData();
-  }, [user, inventoryEntries, fetchData]);
+  }, [user, getTotalAvailableForItem, fetchData]);
 
   // Get distinct available items (items with OPEN inventory)
   const getDistinctAvailableItems = useCallback(() => {
