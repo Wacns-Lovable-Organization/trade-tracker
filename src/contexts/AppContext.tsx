@@ -274,14 +274,15 @@ function mapSale(db: DbSale): Sale {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const { viewAsUser } = useViewAs();
+  const { viewAsUser, getEffectiveUserId } = useViewAs();
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [items, setItems] = useState<DbItem[]>([]);
   const [inventoryEntries, setInventoryEntries] = useState<DbInventoryEntry[]>([]);
   const [sales, setSales] = useState<DbSale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get effective user ID (for View As feature)
+  // Get effective user ID for all operations (read and write)
+  const effectiveUserId = user ? getEffectiveUserId(user.id) : null;
   const viewAsUserId = viewAsUser?.id || null;
 
   // Fetch all data
@@ -336,15 +337,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Add category
   const addCategory = useCallback(async (name: string) => {
-    if (!user) throw new Error('Not authenticated');
+    if (!user || !effectiveUserId) throw new Error('Not authenticated');
     
     const { error } = await supabase
       .from('categories')
-      .insert({ user_id: user.id, name });
+      .insert({ user_id: effectiveUserId, name });
     
     if (error) throw error;
     await fetchData();
-  }, [user, fetchData]);
+  }, [user, effectiveUserId, fetchData]);
 
   // Rename category
   const renameCategory = useCallback(async (id: string, newName: string) => {
@@ -361,14 +362,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Delete category
   const deleteCategory = useCallback(async (id: string) => {
-    if (!user) throw new Error('Not authenticated');
+    if (!user || !effectiveUserId) throw new Error('Not authenticated');
     
     // Find or create "Other" category
     let otherCategory = categories.find(c => c.name === 'Other');
     if (!otherCategory) {
       const { data: newOther } = await supabase
         .from('categories')
-        .insert({ user_id: user.id, name: 'Other' })
+        .insert({ user_id: effectiveUserId, name: 'Other' })
         .select()
         .single();
       otherCategory = newOther as DbCategory;
@@ -390,22 +391,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     if (error) throw error;
     await fetchData();
-  }, [user, categories, fetchData]);
+  }, [user, effectiveUserId, categories, fetchData]);
 
   // Add item
   const addItem = useCallback(async (name: string, categoryId: string): Promise<Item> => {
-    if (!user) throw new Error('Not authenticated');
+    if (!user || !effectiveUserId) throw new Error('Not authenticated');
     
     const { data: newItem, error } = await supabase
       .from('items')
-      .insert({ user_id: user.id, name, category_id: categoryId })
+      .insert({ user_id: effectiveUserId, name, category_id: categoryId })
       .select()
       .single();
     
     if (error) throw error;
     await fetchData();
     return mapItem(newItem as DbItem);
-  }, [user, fetchData]);
+  }, [user, effectiveUserId, fetchData]);
 
   // Get item by ID
   const getItemById = useCallback((id: string) => {
@@ -423,12 +424,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notes?: string,
     boughtAt?: string
   ) => {
-    if (!user) throw new Error('Not authenticated');
+    if (!user || !effectiveUserId) throw new Error('Not authenticated');
     
     const { error } = await supabase
       .from('inventory_entries')
       .insert({
-        user_id: user.id,
+        user_id: effectiveUserId,
         item_id: itemId,
         snapshot_name: snapshotName,
         snapshot_category_id: snapshotCategoryId,
@@ -443,7 +444,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     if (error) throw error;
     await fetchData();
-  }, [user, fetchData]);
+  }, [user, effectiveUserId, fetchData]);
 
   // Update inventory entry
   const updateInventoryEntry = useCallback(async (
@@ -500,7 +501,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notes?: string,
     boughtAt?: string
   ): Promise<Item> => {
-    if (!user) throw new Error('Not authenticated');
+    if (!user || !effectiveUserId) throw new Error('Not authenticated');
     
     // Check if item already exists
     let item = items.find(
@@ -510,7 +511,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!item) {
       const { data: newItem, error: itemError } = await supabase
         .from('items')
-        .insert({ user_id: user.id, name: name.trim(), category_id: categoryId })
+        .insert({ user_id: effectiveUserId, name: name.trim(), category_id: categoryId })
         .select()
         .single();
       
@@ -522,7 +523,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase
       .from('inventory_entries')
       .insert({
-        user_id: user.id,
+        user_id: effectiveUserId,
         item_id: item.id,
         snapshot_name: snapshotName,
         snapshot_category_id: snapshotCategoryId,
@@ -538,7 +539,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
     await fetchData();
     return mapItem(item);
-  }, [user, items, fetchData]);
+  }, [user, effectiveUserId, items, fetchData]);
 
   // Get available entries for an item
   const getAvailableEntriesForItem = useCallback((itemId: string) => {
@@ -608,7 +609,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notes?: string,
     soldAt?: string
   ) => {
-    if (!user) throw new Error('Not authenticated');
+    if (!user || !effectiveUserId) throw new Error('Not authenticated');
     
     // Get lifetime totals for this item
     const itemInfo = getTotalAvailableForItem(itemId);
@@ -635,7 +636,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase
       .from('sales')
       .insert({
-        user_id: user.id,
+        user_id: effectiveUserId,
         item_id: itemId,
         quantity_sold: quantitySold,
         sale_price: amountGained,
@@ -649,7 +650,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     if (error) throw error;
     await fetchData();
-  }, [user, getTotalAvailableForItem, fetchData]);
+  }, [user, effectiveUserId, getTotalAvailableForItem, fetchData]);
 
   // Update sale
   const updateSale = useCallback(async (
