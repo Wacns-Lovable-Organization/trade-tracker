@@ -9,17 +9,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Package, Loader2, Mail, Lock, User, ArrowLeft, KeyRound, Gamepad2 } from 'lucide-react';
 import { z } from 'zod';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { supabase } from '@/integrations/supabase/client';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
-type AuthView = 'main' | 'forgot-password' | 'reset-password-form';
+type AuthView = 'main' | 'signup-verify' | 'forgot-password' | 'reset-password-form';
+
+function generateOTP(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading, signIn, signUp } = useAuth();
+  const { settings, isLoading: settingsLoading } = useAppSettings();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [view, setView] = useState<AuthView>('main');
   
@@ -34,6 +41,11 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState('');
   const [growId, setGrowId] = useState('');
   
+  // OTP verification state (for Resend method)
+  const [pendingOTP, setPendingOTP] = useState('');
+  const [enteredOTP, setEnteredOTP] = useState('');
+  const [otpExpiry, setOtpExpiry] = useState<Date | null>(null);
+  
   // Forgot password state
   const [resetEmail, setResetEmail] = useState('');
   
@@ -41,13 +53,14 @@ export default function Auth() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
+  const useResendOTP = settings.auth_method.method === 'resend';
+
   // Check for password reset token in URL
   useEffect(() => {
     const type = searchParams.get('type');
     const accessToken = searchParams.get('access_token');
     
     if (type === 'recovery' && accessToken) {
-      // User clicked magic link for password reset
       setView('reset-password-form');
     }
   }, [searchParams]);
@@ -58,6 +71,22 @@ export default function Auth() {
       navigate('/', { replace: true });
     }
   }, [user, authLoading, navigate, view]);
+
+  const sendOTPEmail = async (email: string, otp: string, type: 'signup' | 'password_reset') => {
+    const response = await supabase.functions.invoke('send-otp', {
+      body: { email, otp, type },
+    });
+    
+    if (response.error) {
+      throw new Error(response.error.message || 'Failed to send verification email');
+    }
+    
+    if (response.data?.error) {
+      throw new Error(response.data.error);
+    }
+    
+    return response.data;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +132,6 @@ export default function Auth() {
       }
     }
     
-    // Validate GrowID is required
     if (!growId.trim()) {
       toast.error('GrowID is required');
       return;
@@ -121,6 +149,26 @@ export default function Auth() {
     
     setIsSubmitting(true);
     
+    // Use OTP flow if Resend is enabled
+    if (useResendOTP) {
+      try {
+        const otp = generateOTP();
+        await sendOTPEmail(signupEmail, otp, 'signup');
+        
+        setPendingOTP(otp);
+        setOtpExpiry(new Date(Date.now() + 10 * 60 * 1000)); // 10 minutes
+        setView('signup-verify');
+        toast.success('Verification code sent to your email!');
+      } catch (error: unknown) {
+        const err = error as Error;
+        toast.error(err.message || 'Failed to send verification code');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+    
+    // Direct signup with auto-confirm (Supabase built-in)
     const { error } = await signUp(signupEmail, signupPassword, displayName, growId.trim().toUpperCase());
     
     setIsSubmitting(false);
@@ -136,6 +184,60 @@ export default function Auth() {
     } else {
       toast.success('Account created successfully!');
       navigate('/', { replace: true });
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (enteredOTP.length !== 6) {
+      toast.error('Please enter the complete 6-digit code');
+      return;
+    }
+    
+    if (otpExpiry && new Date() > otpExpiry) {
+      toast.error('Verification code has expired. Please try again.');
+      setView('main');
+      return;
+    }
+    
+    if (enteredOTP !== pendingOTP) {
+      toast.error('Invalid verification code');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    const { error } = await signUp(signupEmail, signupPassword, displayName, growId.trim().toUpperCase() || undefined);
+    setIsSubmitting(false);
+    
+    if (error) {
+      if (error.message.includes('already registered')) {
+        toast.error('An account with this email already exists. Please log in.');
+      } else if (error.message.includes('grow_id') || error.message.includes('duplicate')) {
+        toast.error('This GrowID is already taken. Please use a different one.');
+      } else {
+        toast.error(error.message);
+      }
+      setView('main');
+    } else {
+      toast.success('Account created successfully!');
+      navigate('/', { replace: true });
+    }
+  };
+
+  const resendOTP = async () => {
+    setIsSubmitting(true);
+    
+    try {
+      const otp = generateOTP();
+      await sendOTPEmail(signupEmail, otp, 'signup');
+      
+      setPendingOTP(otp);
+      setOtpExpiry(new Date(Date.now() + 10 * 60 * 1000));
+      toast.success('New verification code sent!');
+    } catch (error: unknown) {
+      const err = error as Error;
+      toast.error(err.message || 'Failed to resend code');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -164,8 +266,9 @@ export default function Auth() {
       
       toast.success('Password reset link sent! Check your email.');
       setView('main');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to send reset link');
+    } catch (error: unknown) {
+      const err = error as Error;
+      toast.error(err.message || 'Failed to send reset link');
     } finally {
       setIsSubmitting(false);
     }
@@ -197,14 +300,15 @@ export default function Auth() {
       
       toast.success('Password updated successfully!');
       navigate('/', { replace: true });
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update password');
+    } catch (error: unknown) {
+      const err = error as Error;
+      toast.error(err.message || 'Failed to update password');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (authLoading) {
+  if (authLoading || settingsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -275,6 +379,81 @@ export default function Auth() {
                 'Update Password'
               )}
             </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // OTP Verification View for Signup (only when using Resend)
+  if (view === 'signup-verify') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md relative">
+          <CardHeader className="text-center space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute left-4 top-4"
+              onClick={() => setView('main')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <div className="flex justify-center mb-2 pt-4">
+              <div className="p-3 rounded-xl bg-gradient-primary">
+                <Mail className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+            <CardDescription>
+              We sent a 6-digit code to <strong>{signupEmail}</strong>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={6}
+                value={enteredOTP}
+                onChange={setEnteredOTP}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            
+            <Button
+              onClick={handleVerifyOTP}
+              className="w-full"
+              disabled={isSubmitting || enteredOTP.length !== 6}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                'Verify & Create Account'
+              )}
+            </Button>
+            
+            <p className="text-center text-sm text-muted-foreground">
+              Didn't receive the code?{' '}
+              <Button
+                variant="link"
+                className="p-0 h-auto"
+                onClick={resendOTP}
+                disabled={isSubmitting}
+              >
+                Resend
+              </Button>
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -508,10 +687,10 @@ export default function Auth() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating account...
+                      {useResendOTP ? 'Sending code...' : 'Creating account...'}
                     </>
                   ) : (
-                    'Create Account'
+                    useResendOTP ? 'Send Verification Code' : 'Create Account'
                   )}
                 </Button>
               </form>
