@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useViewAs } from '@/contexts/ViewAsContext';
+import { useDeviceTracking } from '@/hooks/useDeviceTracking';
 import {
   Package,
   ShoppingCart,
@@ -53,6 +54,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { hasAdminAccess, isLoading: roleLoading } = useUserRole();
   const { isViewingAs } = useViewAs();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Track device for admin visibility
+  useDeviceTracking();
 
   // Filter nav items based on admin access
   const filteredNavItems = navItems.filter(item => !item.adminOnly || hasAdminAccess);

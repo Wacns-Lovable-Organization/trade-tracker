@@ -299,6 +299,54 @@ export type Database = {
           },
         ]
       }
+      user_devices: {
+        Row: {
+          browser: string | null
+          created_at: string
+          device_id: string
+          device_info: Json
+          device_type: string | null
+          first_seen_at: string
+          id: string
+          ip_address: string | null
+          is_online: boolean
+          last_seen_at: string
+          os: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          browser?: string | null
+          created_at?: string
+          device_id: string
+          device_info?: Json
+          device_type?: string | null
+          first_seen_at?: string
+          id?: string
+          ip_address?: string | null
+          is_online?: boolean
+          last_seen_at?: string
+          os?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          browser?: string | null
+          created_at?: string
+          device_id?: string
+          device_info?: Json
+          device_type?: string | null
+          first_seen_at?: string
+          id?: string
+          ip_address?: string | null
+          is_online?: boolean
+          last_seen_at?: string
+          os?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_at: string
@@ -335,6 +383,34 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_admin_dashboard_stats: {
+        Args: never
+        Returns: {
+          active_users: number
+          online_users: number
+          total_inventory: number
+          total_revenue: number
+          total_sales: number
+          total_users: number
+        }[]
+      }
+      get_admin_sales_trends: {
+        Args: never
+        Returns: {
+          sale_count: number
+          sale_date: string
+          total_profit: number
+          total_revenue: number
+        }[]
+      }
+      get_admin_user_activity: {
+        Args: never
+        Returns: {
+          active_devices: number
+          activity_date: string
+          new_users: number
+        }[]
+      }
       get_admin_user_stats: {
         Args: { _user_id: string }
         Returns: {
@@ -357,6 +433,19 @@ export type Database = {
       is_blacklisted: {
         Args: { _device_id?: string; _email: string; _ip?: string }
         Returns: boolean
+      }
+      set_device_offline: { Args: { _device_id: string }; Returns: undefined }
+      upsert_user_device: {
+        Args: {
+          _browser?: string
+          _device_id: string
+          _device_info: Json
+          _device_type?: string
+          _ip_address?: string
+          _os?: string
+          _user_agent?: string
+        }
+        Returns: string
       }
     }
     Enums: {

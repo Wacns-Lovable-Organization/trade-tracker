@@ -64,11 +64,15 @@ import {
   Ban,
   Clock,
   Filter,
-  RefreshCw
+  RefreshCw,
+  LayoutDashboard,
+  Smartphone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { AdminDashboard } from '@/components/admin/AdminDashboard';
+import { DevicesTab } from '@/components/admin/DevicesTab';
 
 interface UserProfile {
   id: string;
@@ -594,11 +598,19 @@ export default function AdminPanel() {
         </Badge>
       </PageHeader>
 
-      <Tabs defaultValue="users" className="space-y-6">
+      <Tabs defaultValue="dashboard" className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
+          <TabsTrigger value="dashboard" className="gap-2">
+            <LayoutDashboard className="w-4 h-4" />
+            Dashboard
+          </TabsTrigger>
           <TabsTrigger value="users" className="gap-2">
             <Users className="w-4 h-4" />
             Users
+          </TabsTrigger>
+          <TabsTrigger value="devices" className="gap-2">
+            <Smartphone className="w-4 h-4" />
+            Devices
           </TabsTrigger>
           <TabsTrigger value="activity" className="gap-2">
             <History className="w-4 h-4" />
@@ -617,6 +629,11 @@ export default function AdminPanel() {
             </TabsTrigger>
           )}
         </TabsList>
+
+        {/* Dashboard Tab */}
+        <TabsContent value="dashboard">
+          <AdminDashboard />
+        </TabsContent>
 
         {/* Users Tab */}
         <TabsContent value="users">
@@ -859,6 +876,20 @@ export default function AdminPanel() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Devices Tab */}
+        <TabsContent value="devices">
+          <DevicesTab 
+            users={users.map(u => ({ user_id: u.user_id, display_name: u.display_name }))}
+            onBlacklistDevice={(deviceId) => {
+              setBlacklistType('device_id');
+              setBlacklistValue(deviceId);
+              // Switch to blacklist tab
+              const tabsElement = document.querySelector('[value="blacklist"]');
+              if (tabsElement instanceof HTMLElement) tabsElement.click();
+            }}
+          />
         </TabsContent>
 
         {/* Activity Logs Tab */}
