@@ -126,6 +126,18 @@ interface AppContextType {
     boughtAt?: string
   ) => Promise<void>;
   
+  updateInventoryEntry: (
+    entryId: string,
+    updates: {
+      quantityBought?: number;
+      unitCost?: number;
+      notes?: string;
+      boughtAt?: string;
+    }
+  ) => Promise<void>;
+  
+  deleteInventoryEntry: (entryId: string) => Promise<void>;
+  
   addItemWithInventoryEntry: (
     name: string,
     categoryId: string,
@@ -138,7 +150,7 @@ interface AppContextType {
     boughtAt?: string
   ) => Promise<Item>;
   
-  // Sales (FIFO-based, item-level)
+  // Sales (item-level)
   addSaleByItem: (
     itemId: string,
     quantitySold: number,
@@ -155,6 +167,12 @@ interface AppContextType {
     remainingQty: number; 
     totalPurchasedQty: number; 
     lifetimeTotalCost: number; 
+    currency: CurrencyUnit | null;
+  };
+  getItemProfitSummary: (itemId: string) => {
+    totalRevenue: number;
+    totalCost: number;
+    cumulativeProfit: number;
     currency: CurrencyUnit | null;
   };
   simulateProfit: (itemId: string, simulateQty: number, sellUnitPrice: number) => SimulationResult;
@@ -401,6 +419,49 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await fetchData();
   }, [user, fetchData]);
 
+  // Update inventory entry
+  const updateInventoryEntry = useCallback(async (
+    entryId: string,
+    updates: {
+      quantityBought?: number;
+      unitCost?: number;
+      notes?: string;
+      boughtAt?: string;
+    }
+  ) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    const updateData: Record<string, any> = {};
+    if (updates.quantityBought !== undefined) {
+      updateData.quantity_bought = updates.quantityBought;
+      updateData.remaining_qty = updates.quantityBought; // Reset remaining to match bought
+    }
+    if (updates.unitCost !== undefined) updateData.unit_cost = updates.unitCost;
+    if (updates.notes !== undefined) updateData.notes = updates.notes || null;
+    if (updates.boughtAt !== undefined) updateData.bought_at = updates.boughtAt;
+    
+    const { error } = await supabase
+      .from('inventory_entries')
+      .update(updateData)
+      .eq('id', entryId);
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, fetchData]);
+
+  // Delete inventory entry
+  const deleteInventoryEntry = useCallback(async (entryId: string) => {
+    if (!user) throw new Error('Not authenticated');
+    
+    const { error } = await supabase
+      .from('inventory_entries')
+      .delete()
+      .eq('id', entryId);
+    
+    if (error) throw error;
+    await fetchData();
+  }, [user, fetchData]);
+
   // Add item with inventory entry atomically
   const addItemWithInventoryEntry = useCallback(async (
     name: string,
@@ -485,6 +546,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return { remainingQty, totalPurchasedQty, lifetimeTotalCost, currency };
   }, [inventoryEntries, sales]);
+
+  // Get profit summary for an item (total revenue, total cost, cumulative profit)
+  const getItemProfitSummary = useCallback((itemId: string) => {
+    const itemSales = sales.filter(s => s.item_id === itemId);
+    const allEntries = inventoryEntries.filter(e => e.item_id === itemId);
+    
+    let totalRevenue = 0;
+    let currency: CurrencyUnit | null = null;
+    
+    for (const sale of itemSales) {
+      totalRevenue += Number(sale.sale_price);
+      if (!currency) currency = sale.currency_unit as CurrencyUnit;
+    }
+    
+    // Total cost is lifetime total cost of all purchases
+    let totalCost = 0;
+    for (const entry of allEntries) {
+      totalCost += entry.quantity_bought * Number(entry.unit_cost);
+      if (!currency) currency = entry.currency_unit as CurrencyUnit;
+    }
+    
+    const cumulativeProfit = totalRevenue - totalCost;
+    
+    return { totalRevenue, totalCost, cumulativeProfit, currency };
+  }, [sales, inventoryEntries]);
 
   // Record sale - simple logic: profit = revenue - (lifetime_total_cost / total_purchased_qty * qty_sold)
   const addSaleByItem = useCallback(async (
@@ -632,11 +718,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addItem,
         getItemById,
         addInventoryEntry,
+        updateInventoryEntry,
+        deleteInventoryEntry,
         addItemWithInventoryEntry,
         addSaleByItem,
         getDistinctAvailableItems,
         getAvailableEntriesForItem,
         getTotalAvailableForItem,
+        getItemProfitSummary,
         simulateProfit,
         calculateSaleProfit,
         refreshData: fetchData,
