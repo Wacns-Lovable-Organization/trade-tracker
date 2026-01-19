@@ -18,6 +18,7 @@ import {
   LogOut,
   Cloud,
   Shield,
+  Truck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +30,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { LowStockAlert } from '@/components/LowStockAlert';
 
 interface NavItem {
   label: string;
@@ -44,6 +47,7 @@ const navItems: NavItem[] = [
   { label: 'Record Sale', href: '/sales', icon: TrendingUp },
   { label: 'Profit Simulator', href: '/simulate', icon: Calculator },
   { label: 'Categories', href: '/categories', icon: Tags },
+  { label: 'Suppliers', href: '/suppliers', icon: Truck },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Admin Panel', href: '/admin', icon: Shield, adminOnly: true },
 ];
@@ -91,7 +95,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <span className="font-semibold">GT Inventory</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <LowStockAlert />
+            <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
