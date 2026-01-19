@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
-type AuthView = 'main' | 'signup-verify' | 'forgot-password' | 'reset-password';
+type AuthView = 'main' | 'signup-verify' | 'forgot-password' | 'reset-password-form';
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -23,6 +23,7 @@ function generateOTP(): string {
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading, signIn, signUp } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [view, setView] = useState<AuthView>('main');
@@ -44,17 +45,28 @@ export default function Auth() {
   
   // Forgot password state
   const [resetEmail, setResetEmail] = useState('');
-  const [resetOTP, setResetOTP] = useState('');
-  const [enteredResetOTP, setEnteredResetOTP] = useState('');
+  
+  // Password update state (for magic link flow)
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
-  // Redirect if already logged in
+  // Check for password reset token in URL
   useEffect(() => {
-    if (user && !authLoading) {
+    const type = searchParams.get('type');
+    const accessToken = searchParams.get('access_token');
+    
+    if (type === 'recovery' && accessToken) {
+      // User clicked magic link for password reset
+      setView('reset-password-form');
+    }
+  }, [searchParams]);
+
+  // Redirect if already logged in (but not in reset mode)
+  useEffect(() => {
+    if (user && !authLoading && view !== 'reset-password-form') {
       navigate('/', { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, view]);
 
   const sendOTPEmail = async (email: string, otp: string, type: 'signup' | 'password_reset') => {
     const response = await supabase.functions.invoke('send-otp', {
@@ -63,6 +75,11 @@ export default function Auth() {
     
     if (response.error) {
       throw new Error(response.error.message || 'Failed to send verification email');
+    }
+    
+    // Check for rate limit response
+    if (response.data?.error) {
+      throw new Error(response.data.error);
     }
     
     return response.data;
@@ -183,37 +200,24 @@ export default function Auth() {
     setIsSubmitting(true);
     
     try {
-      const otp = generateOTP();
-      await sendOTPEmail(resetEmail, otp, 'password_reset');
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/auth?type=recovery`,
+      });
       
-      setResetOTP(otp);
-      setOtpExpiry(new Date(Date.now() + 10 * 60 * 1000));
-      setView('reset-password');
-      toast.success('Password reset code sent to your email!');
+      if (error) {
+        throw error;
+      }
+      
+      toast.success('Password reset link sent! Check your email.');
+      setView('main');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send reset code');
+      toast.error(error.message || 'Failed to send reset link');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleResetPassword = async () => {
-    if (enteredResetOTP.length !== 6) {
-      toast.error('Please enter the complete 6-digit code');
-      return;
-    }
-    
-    if (otpExpiry && new Date() > otpExpiry) {
-      toast.error('Reset code has expired. Please try again.');
-      setView('forgot-password');
-      return;
-    }
-    
-    if (enteredResetOTP !== resetOTP) {
-      toast.error('Invalid reset code');
-      return;
-    }
-    
+  const handleUpdatePassword = async () => {
     try {
       passwordSchema.parse(newPassword);
     } catch (err) {
@@ -230,35 +234,30 @@ export default function Auth() {
     
     setIsSubmitting(true);
     
-    // Use Supabase admin to update password
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    
-    setIsSubmitting(false);
-    
-    if (error) {
-      // If user is not logged in, we need to sign them in first with a temporary session
-      // For now, instruct them to log in with old password first
-      toast.error('Please log in with your current password, then change it in settings.');
-      setView('main');
-    } else {
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      
+      if (error) {
+        throw error;
+      }
+      
       toast.success('Password updated successfully!');
-      setView('main');
+      navigate('/', { replace: true });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update password');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const resendOTP = async (type: 'signup' | 'password_reset') => {
+  const resendOTP = async () => {
     setIsSubmitting(true);
     
     try {
       const otp = generateOTP();
-      const email = type === 'signup' ? signupEmail : resetEmail;
-      await sendOTPEmail(email, otp, type);
+      await sendOTPEmail(signupEmail, otp, 'signup');
       
-      if (type === 'signup') {
-        setPendingOTP(otp);
-      } else {
-        setResetOTP(otp);
-      }
+      setPendingOTP(otp);
       setOtpExpiry(new Date(Date.now() + 10 * 60 * 1000));
       toast.success('New verification code sent!');
     } catch (error: any) {
@@ -276,11 +275,80 @@ export default function Auth() {
     );
   }
 
+  // Password Reset Form (after clicking magic link)
+  if (view === 'reset-password-form') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-2">
+            <div className="flex justify-center mb-2">
+              <div className="p-3 rounded-xl bg-gradient-primary">
+                <Lock className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl">Set New Password</CardTitle>
+            <CardDescription>
+              Enter your new password below
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="confirm-new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+            
+            <Button
+              onClick={handleUpdatePassword}
+              className="w-full"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Password'
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // OTP Verification View for Signup
   if (view === 'signup-verify') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md relative">
           <CardHeader className="text-center space-y-2">
             <Button
               variant="ghost"
@@ -339,7 +407,7 @@ export default function Auth() {
               <Button
                 variant="link"
                 className="p-0 h-auto"
-                onClick={() => resendOTP('signup')}
+                onClick={resendOTP}
                 disabled={isSubmitting}
               >
                 Resend
@@ -355,7 +423,7 @@ export default function Auth() {
   if (view === 'forgot-password') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md relative">
           <CardHeader className="text-center space-y-2">
             <Button
               variant="ghost"
@@ -373,7 +441,7 @@ export default function Auth() {
             </div>
             <CardTitle className="text-2xl">Forgot Password</CardTitle>
             <CardDescription>
-              Enter your email and we'll send you a reset code
+              Enter your email and we'll send you a reset link
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -401,119 +469,10 @@ export default function Auth() {
                     Sending...
                   </>
                 ) : (
-                  'Send Reset Code'
+                  'Send Reset Link'
                 )}
               </Button>
             </form>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Reset Password with OTP View
-  if (view === 'reset-password') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center space-y-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute left-4 top-4"
-              onClick={() => setView('forgot-password')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
-            <div className="flex justify-center mb-2 pt-4">
-              <div className="p-3 rounded-xl bg-gradient-primary">
-                <Lock className="h-8 w-8 text-white" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl">Reset Password</CardTitle>
-            <CardDescription>
-              Enter the code sent to <strong>{resetEmail}</strong>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex justify-center">
-              <InputOTP
-                maxLength={6}
-                value={enteredResetOTP}
-                onChange={setEnteredResetOTP}
-              >
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="new-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="confirm-new-password">Confirm New Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="confirm-new-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <Button
-              onClick={handleResetPassword}
-              className="w-full"
-              disabled={isSubmitting || enteredResetOTP.length !== 6}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Resetting...
-                </>
-              ) : (
-                'Reset Password'
-              )}
-            </Button>
-            
-            <p className="text-center text-sm text-muted-foreground">
-              Didn't receive the code?{' '}
-              <Button
-                variant="link"
-                className="p-0 h-auto"
-                onClick={() => resendOTP('password_reset')}
-                disabled={isSubmitting}
-              >
-                Resend
-              </Button>
-            </p>
           </CardContent>
         </Card>
       </div>

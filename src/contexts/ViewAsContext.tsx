@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import type { Json } from '@/integrations/supabase/types';
 
 interface ViewAsUser {
   id: string;
@@ -18,15 +21,50 @@ interface ViewAsContextType {
 const ViewAsContext = createContext<ViewAsContextType | null>(null);
 
 export function ViewAsProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [viewAsUser, setViewAsUserState] = useState<ViewAsUser | null>(null);
 
-  const setViewAsUser = useCallback((user: ViewAsUser | null) => {
-    setViewAsUserState(user);
-  }, []);
+  const logAdminActivity = useCallback(async (
+    actionType: string,
+    targetUserId: string,
+    targetEmail: string,
+    details: Record<string, Json> = {}
+  ) => {
+    if (!user) return;
+
+    try {
+      await supabase
+        .from('admin_activity_logs')
+        .insert([{
+          admin_user_id: user.id,
+          action_type: actionType,
+          target_user_id: targetUserId,
+          target_email: targetEmail,
+          details: details,
+          user_agent: navigator.userAgent,
+        }]);
+    } catch (err) {
+      console.error('Error logging admin activity:', err);
+    }
+  }, [user]);
+
+  const setViewAsUser = useCallback((newUser: ViewAsUser | null) => {
+    // Log impersonation start
+    if (newUser && user) {
+      logAdminActivity('impersonation_start', newUser.id, newUser.email, {
+        target_display_name: newUser.displayName || null,
+      });
+    }
+    setViewAsUserState(newUser);
+  }, [user, logAdminActivity]);
 
   const clearViewAs = useCallback(() => {
+    // Log impersonation end
+    if (viewAsUser && user) {
+      logAdminActivity('impersonation_end', viewAsUser.id, viewAsUser.email);
+    }
     setViewAsUserState(null);
-  }, []);
+  }, [viewAsUser, user, logAdminActivity]);
 
   const isViewingAs = viewAsUser !== null;
 

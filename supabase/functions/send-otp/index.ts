@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,6 +24,54 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { email, otp, type }: OTPRequest = await req.json();
+
+    if (!email || !otp || !type) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Create Supabase client with service role
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // Get IP address from request headers
+    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+                      req.headers.get("cf-connecting-ip") || 
+                      null;
+
+    // Check rate limit
+    const { data: rateLimitResult, error: rateLimitError } = await supabase.rpc(
+      "check_otp_rate_limit",
+      {
+        _email: email,
+        _ip_address: ipAddress,
+        _max_attempts: 5,
+        _window_minutes: 15,
+        _block_minutes: 30,
+      }
+    );
+
+    if (rateLimitError) {
+      console.error("Rate limit check error:", rateLimitError);
+      // Continue anyway if rate limit check fails
+    } else if (rateLimitResult && rateLimitResult.length > 0) {
+      const { allowed, remaining_attempts, blocked_until, message } = rateLimitResult[0];
+      
+      if (!allowed) {
+        console.log(`Rate limit blocked for ${email}, blocked until: ${blocked_until}`);
+        return new Response(
+          JSON.stringify({ 
+            error: message || "Too many attempts. Please try again later.",
+            blocked_until,
+            remaining_attempts: 0
+          }),
+          { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      console.log(`OTP request for ${email}, remaining attempts: ${remaining_attempts}`);
+    }
 
     const isPasswordReset = type === "password_reset";
     const subject = isPasswordReset
