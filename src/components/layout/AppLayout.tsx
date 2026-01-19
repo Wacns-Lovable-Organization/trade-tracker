@@ -78,9 +78,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User';
 
   return (
-    <div className={cn("min-h-screen bg-background", isViewingAs && "pt-10")}>
+    <div className={cn("min-h-screen bg-background", isViewingAs && "pt-12")}>
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 border-b border-border bg-background/95 backdrop-blur-sm">
+      <header className={cn(
+        "lg:hidden fixed left-0 right-0 z-50 h-14 border-b border-border bg-background/95 backdrop-blur-sm",
+        isViewingAs ? "top-12" : "top-0"
+      )}>
         <div className="flex items-center justify-between h-full px-4">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
@@ -124,7 +127,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm pt-14">
+        <div className={cn(
+          "lg:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm",
+          isViewingAs ? "pt-26" : "pt-14"
+        )}>
           <nav className="p-4 space-y-1">
             {filteredNavItems.map((item) => (
               <Link
@@ -146,7 +152,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col border-r border-border bg-sidebar">
+      <aside className={cn(
+        "hidden lg:flex fixed left-0 bottom-0 w-64 flex-col border-r border-border bg-sidebar",
+        isViewingAs ? "top-12" : "top-0"
+      )}>
         <div className="p-6">
           <Link to="/" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg">
@@ -216,7 +225,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:pl-64 pt-14 lg:pt-0 min-h-screen">
+      <main className={cn(
+        "lg:pl-64 min-h-screen",
+        isViewingAs ? "pt-26 lg:pt-0" : "pt-14 lg:pt-0"
+      )}>
         <div className="p-4 lg:p-8 max-w-6xl mx-auto">
           {children}
         </div>

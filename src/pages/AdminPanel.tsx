@@ -416,10 +416,10 @@ export default function AdminPanel() {
     logAction('view_as', profile.user_id, profile.display_name || undefined);
     setViewAsUser({
       id: profile.user_id,
-      email: profile.display_name || 'User',
+      email: profile.email || profile.display_name || 'User',
       displayName: profile.display_name,
     });
-    toast.success(`Viewing as ${profile.display_name || 'User'}`);
+    toast.success(`Now impersonating ${profile.display_name || profile.email || 'User'} - you can browse and edit their data`);
     navigate('/');
   };
 
