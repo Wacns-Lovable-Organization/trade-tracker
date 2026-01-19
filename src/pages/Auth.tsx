@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Package, Loader2, Mail, Lock, User, ArrowLeft, KeyRound } from 'lucide-react';
+import { Package, Loader2, Mail, Lock, User, ArrowLeft, KeyRound, Gamepad2 } from 'lucide-react';
 import { z } from 'zod';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +37,7 @@ export default function Auth() {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [growId, setGrowId] = useState('');
   
   // OTP verification state
   const [pendingOTP, setPendingOTP] = useState('');
@@ -169,12 +170,14 @@ export default function Auth() {
     }
     
     setIsSubmitting(true);
-    const { error } = await signUp(signupEmail, signupPassword, displayName);
+    const { error } = await signUp(signupEmail, signupPassword, displayName, growId.trim().toUpperCase() || undefined);
     setIsSubmitting(false);
     
     if (error) {
       if (error.message.includes('already registered')) {
         toast.error('An account with this email already exists. Please log in.');
+      } else if (error.message.includes('grow_id') || error.message.includes('duplicate')) {
+        toast.error('This GrowID is already taken. Please use a different one.');
       } else {
         toast.error(error.message);
       }
@@ -573,6 +576,25 @@ export default function Auth() {
                       className="pl-10"
                     />
                   </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="grow-id">GrowID (Optional)</Label>
+                  <div className="relative">
+                    <Gamepad2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="grow-id"
+                      type="text"
+                      placeholder="Your in-game name"
+                      value={growId}
+                      onChange={(e) => setGrowId(e.target.value.toUpperCase())}
+                      className="pl-10 uppercase"
+                      maxLength={20}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Your unique in-game identity (can be added later)
+                  </p>
                 </div>
                 
                 <div className="space-y-2">
