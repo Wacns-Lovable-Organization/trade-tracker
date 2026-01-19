@@ -130,6 +130,17 @@ export default function Auth() {
       }
     }
     
+    // Validate GrowID is required
+    if (!growId.trim()) {
+      toast.error('GrowID is required');
+      return;
+    }
+    
+    if (growId.trim().length < 3) {
+      toast.error('GrowID must be at least 3 characters');
+      return;
+    }
+    
     if (signupPassword !== signupConfirmPassword) {
       toast.error('Passwords do not match');
       return;
@@ -579,7 +590,7 @@ export default function Auth() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="grow-id">GrowID (Optional)</Label>
+                  <Label htmlFor="grow-id">GrowID *</Label>
                   <div className="relative">
                     <Gamepad2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -590,10 +601,11 @@ export default function Auth() {
                       onChange={(e) => setGrowId(e.target.value.toUpperCase())}
                       className="pl-10 uppercase"
                       maxLength={20}
+                      required
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Your unique in-game identity (can be added later)
+                    Your unique in-game identity (required, must be unique)
                   </p>
                 </div>
                 
