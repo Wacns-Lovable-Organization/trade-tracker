@@ -19,49 +19,49 @@ export default function InventoryList() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<typeof data.items[0] | null>(null);
 
-  // Group inventory entries by item
+  // Group inventory entries by item - using lifetime totals
   const groupedItems = useMemo(() => {
     const itemMap = new Map<string, GroupedItem>();
 
-    data.inventoryEntries
-      .filter(entry => {
-        // Status filter
-        if (statusFilter !== 'all' && entry.status !== statusFilter) {
-          return false;
-        }
-        // Category filter
-        if (categoryFilter !== 'all' && entry.snapshotCategoryId !== categoryFilter) {
-          return false;
-        }
-        return true;
-      })
-      .forEach(entry => {
-        const item = data.items.find(i => i.id === entry.itemId);
-        if (!item) return;
+    // First pass: calculate lifetime totals per item
+    data.inventoryEntries.forEach(entry => {
+      const item = data.items.find(i => i.id === entry.itemId);
+      if (!item) return;
 
-        const existing = itemMap.get(item.id);
-        const category = data.categories.find(c => c.id === entry.snapshotCategoryId);
+      // Apply filters
+      if (statusFilter !== 'all' && entry.status !== statusFilter) return;
+      if (categoryFilter !== 'all' && entry.snapshotCategoryId !== categoryFilter) return;
 
-        if (existing) {
-          existing.totalQuantity += entry.remainingQty;
-          if (entry.status === 'OPEN' && entry.remainingQty > 0) {
-            existing.openEntries += 1;
-          }
-        } else {
-          itemMap.set(item.id, {
-            id: item.id,
-            name: item.name,
-            categoryId: entry.snapshotCategoryId,
-            categoryName: category?.name || 'Other',
-            totalQuantity: entry.remainingQty,
-            openEntries: entry.status === 'OPEN' && entry.remainingQty > 0 ? 1 : 0,
-            valueByCurrency: [],
-          });
-        }
-      });
+      const existing = itemMap.get(item.id);
+      const category = data.categories.find(c => c.id === entry.snapshotCategoryId);
+
+      if (existing) {
+        existing.totalPurchasedQty += entry.quantityBought;
+        existing.lifetimeTotalCost += entry.quantityBought * entry.unitCost;
+      } else {
+        itemMap.set(item.id, {
+          id: item.id,
+          name: item.name,
+          categoryId: entry.snapshotCategoryId,
+          categoryName: category?.name || 'Other',
+          remainingQty: 0, // Will be calculated after
+          totalPurchasedQty: entry.quantityBought,
+          lifetimeTotalCost: entry.quantityBought * entry.unitCost,
+          currency: entry.currencyUnit,
+        });
+      }
+    });
+
+    // Second pass: calculate remaining qty (totalPurchased - totalSold)
+    itemMap.forEach((groupedItem, itemId) => {
+      const totalSold = data.sales
+        .filter(s => s.itemId === itemId)
+        .reduce((sum, s) => sum + s.quantitySold, 0);
+      groupedItem.remainingQty = groupedItem.totalPurchasedQty - totalSold;
+    });
 
     return Array.from(itemMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [data.inventoryEntries, data.items, data.categories, statusFilter, categoryFilter]);
+  }, [data.inventoryEntries, data.items, data.categories, data.sales, statusFilter, categoryFilter]);
 
   // Filter by search
   const filteredItems = useMemo(() => {
