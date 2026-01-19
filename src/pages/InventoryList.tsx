@@ -5,28 +5,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { Link } from 'react-router-dom';
 import { Plus, Package, Search, Filter } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { GroupedItemCard, type GroupedItem } from '@/components/inventory/GroupedItemCard';
+import { ItemTransactionHistory } from '@/components/inventory/ItemTransactionHistory';
+import type { CurrencyUnit } from '@/types/inventory';
 
 export default function InventoryList() {
   const { data } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'OPEN' | 'CLOSED'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<typeof data.items[0] | null>(null);
 
-  const filteredEntries = useMemo(() => {
-    return data.inventoryEntries
+  // Group inventory entries by item
+  const groupedItems = useMemo(() => {
+    const itemMap = new Map<string, GroupedItem>();
+
+    data.inventoryEntries
       .filter(entry => {
-        // Search filter
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          if (!entry.snapshotName.toLowerCase().includes(query)) {
-            return false;
-          }
-        }
         // Status filter
         if (statusFilter !== 'all' && entry.status !== statusFilter) {
           return false;
@@ -37,29 +35,59 @@ export default function InventoryList() {
         }
         return true;
       })
-      .sort((a, b) => new Date(b.boughtAt).getTime() - new Date(a.boughtAt).getTime());
-  }, [data.inventoryEntries, searchQuery, statusFilter, categoryFilter]);
+      .forEach(entry => {
+        const item = data.items.find(i => i.id === entry.itemId);
+        if (!item) return;
 
-  const getCategoryName = (categoryId: string) => {
-    return data.categories.find(c => c.id === categoryId)?.name || 'Unknown';
+        const existing = itemMap.get(item.id);
+        const category = data.categories.find(c => c.id === entry.snapshotCategoryId);
+
+        if (existing) {
+          existing.totalQuantity += entry.remainingQty;
+          if (entry.status === 'OPEN' && entry.remainingQty > 0) {
+            existing.openEntries += 1;
+          }
+        } else {
+          itemMap.set(item.id, {
+            id: item.id,
+            name: item.name,
+            categoryId: entry.snapshotCategoryId,
+            categoryName: category?.name || 'Other',
+            totalQuantity: entry.remainingQty,
+            openEntries: entry.status === 'OPEN' && entry.remainingQty > 0 ? 1 : 0,
+            valueByCurrency: [],
+          });
+        }
+      });
+
+    return Array.from(itemMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [data.inventoryEntries, data.items, data.categories, statusFilter, categoryFilter]);
+
+  // Filter by search
+  const filteredItems = useMemo(() => {
+    if (!searchQuery) return groupedItems;
+    const q = searchQuery.toLowerCase();
+    return groupedItems.filter(
+      item => item.name.toLowerCase().includes(q) || item.categoryName.toLowerCase().includes(q)
+    );
+  }, [groupedItems, searchQuery]);
+
+  const handleItemClick = (groupedItem: GroupedItem) => {
+    const item = data.items.find(i => i.id === groupedItem.id);
+    if (item) {
+      setSelectedItem(item);
+      setHistoryOpen(true);
+    }
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const totalEntries = data.inventoryEntries.length;
+  const totalItems = new Set(data.inventoryEntries.map(e => e.itemId)).size;
 
   return (
     <div>
       <PageHeader
         title="Inventory"
-        description={`${data.inventoryEntries.length} total entries`}
+        description={`${totalItems} items • ${totalEntries} entries`}
       >
         <Button asChild className="gap-2">
           <Link to="/inventory/add">
@@ -112,15 +140,15 @@ export default function InventoryList() {
         </CardContent>
       </Card>
 
-      {/* List */}
-      {filteredEntries.length === 0 ? (
+      {/* Grouped Items List */}
+      {filteredItems.length === 0 ? (
         <div className="text-center py-12 animate-fade-in">
           <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-          <h3 className="text-lg font-medium mb-1">No inventory entries</h3>
+          <h3 className="text-lg font-medium mb-1">No items found</h3>
           <p className="text-muted-foreground mb-4">
             {data.inventoryEntries.length === 0
               ? 'Start by adding your first purchase.'
-              : 'No entries match your filters.'}
+              : 'No items match your filters.'}
           </p>
           {data.inventoryEntries.length === 0 && (
             <Button asChild>
@@ -130,73 +158,29 @@ export default function InventoryList() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredEntries.map((entry, index) => (
-            <Card
-              key={entry.id}
-              className="animate-fade-in hover-lift"
+          {filteredItems.map((item, index) => (
+            <div
+              key={item.id}
+              className="animate-fade-in"
               style={{ animationDelay: `${index * 30}ms` }}
             >
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  {/* Item Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold truncate">{entry.snapshotName}</h3>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-xs',
-                          entry.status === 'OPEN' ? 'status-open' : 'status-closed'
-                        )}
-                      >
-                        {entry.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                      <span>{getCategoryName(entry.snapshotCategoryId)}</span>
-                      <span>•</span>
-                      <span>{formatDate(entry.boughtAt)}</span>
-                    </div>
-                    {entry.notes && (
-                      <p className="text-sm text-muted-foreground mt-2 truncate">
-                        {entry.notes}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4 sm:gap-6 text-center sm:text-right">
-                    <div>
-                      <div className="text-xs text-muted-foreground">Qty</div>
-                      <div className="font-mono font-medium">
-                        {entry.remainingQty}/{entry.quantityBought}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">Unit Cost</div>
-                      <CurrencyDisplay
-                        amount={entry.unitCost}
-                        currency={entry.currencyUnit}
-                        size="sm"
-                        className="font-medium"
-                      />
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">Total</div>
-                      <CurrencyDisplay
-                        amount={entry.totalCost}
-                        currency={entry.currencyUnit}
-                        size="sm"
-                        className="font-medium"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              <GroupedItemCard
+                item={item}
+                onClick={() => handleItemClick(item)}
+                showArrow
+              />
+            </div>
           ))}
         </div>
       )}
+
+      <ItemTransactionHistory
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        item={selectedItem}
+        inventoryEntries={data.inventoryEntries}
+        sales={data.sales}
+      />
     </div>
   );
 }
