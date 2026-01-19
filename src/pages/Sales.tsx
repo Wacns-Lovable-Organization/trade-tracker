@@ -9,9 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CurrencyDisplay, ProfitDisplay } from '@/components/ui/CurrencyDisplay';
 import { toast } from 'sonner';
-import { TrendingUp, Package, ArrowRight, Coins } from 'lucide-react';
+import { TrendingUp, Package, ArrowRight, Coins, Search, ArrowLeft, History } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { GroupedItemCard, type GroupedItem } from '@/components/inventory/GroupedItemCard';
+import { ItemTransactionHistory } from '@/components/inventory/ItemTransactionHistory';
 import type { CurrencyUnit } from '@/types/inventory';
 
 const currencyOptions: { value: CurrencyUnit; label: string }[] = [
@@ -21,8 +23,9 @@ const currencyOptions: { value: CurrencyUnit; label: string }[] = [
 ];
 
 export default function Sales() {
-  const { data, getDistinctAvailableItems, getAvailableEntriesForItem, addSale } = useApp();
+  const { data, getAvailableEntriesForItem, addSale } = useApp();
 
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [selectedEntryId, setSelectedEntryId] = useState<string>('');
   const [quantitySold, setQuantitySold] = useState('');
@@ -34,26 +37,88 @@ export default function Sales() {
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
   });
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyItem, setHistoryItem] = useState<typeof data.items[0] | null>(null);
 
-  const availableItems = useMemo(() => getDistinctAvailableItems(), [getDistinctAvailableItems]);
+  // Group items by ID and sum quantities
+  const groupedItems = useMemo(() => {
+    const itemMap = new Map<string, GroupedItem>();
+
+    data.inventoryEntries
+      .filter(e => e.status === 'OPEN' && e.remainingQty > 0)
+      .forEach(entry => {
+        const item = data.items.find(i => i.id === entry.itemId);
+        if (!item) return;
+
+        const existing = itemMap.get(item.id);
+        const category = data.categories.find(c => c.id === entry.snapshotCategoryId);
+
+        if (existing) {
+          existing.totalQuantity += entry.remainingQty;
+          existing.openEntries += 1;
+        } else {
+          itemMap.set(item.id, {
+            id: item.id,
+            name: item.name,
+            categoryId: entry.snapshotCategoryId,
+            categoryName: category?.name || 'Other',
+            totalQuantity: entry.remainingQty,
+            openEntries: 1,
+            valueByCurrency: [],
+          });
+        }
+      });
+
+    return Array.from(itemMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [data.inventoryEntries, data.items, data.categories]);
+
+  // Filter by search
+  const filteredItems = useMemo(() => {
+    if (!searchQuery) return groupedItems;
+    const q = searchQuery.toLowerCase();
+    return groupedItems.filter(
+      item => item.name.toLowerCase().includes(q) || item.categoryName.toLowerCase().includes(q)
+    );
+  }, [groupedItems, searchQuery]);
+
   const availableEntries = useMemo(
     () => (selectedItemId ? getAvailableEntriesForItem(selectedItemId) : []),
     [selectedItemId, getAvailableEntriesForItem]
   );
+
   const selectedEntry = useMemo(
     () => data.inventoryEntries.find(e => e.id === selectedEntryId),
     [data.inventoryEntries, selectedEntryId]
   );
 
-  // Reset entry when item changes
-  const handleItemChange = (itemId: string) => {
+  const selectedItem = useMemo(
+    () => data.items.find(i => i.id === selectedItemId),
+    [data.items, selectedItemId]
+  );
+
+  // Handle item selection
+  const handleItemSelect = (itemId: string) => {
     setSelectedItemId(itemId);
     setSelectedEntryId('');
     setQuantitySold('');
     setAmountGained('');
   };
 
-  // Calculate profit preview (note: different currencies may be used)
+  // Go back to item list
+  const handleBack = () => {
+    setSelectedItemId('');
+    setSelectedEntryId('');
+    setQuantitySold('');
+    setAmountGained('');
+  };
+
+  // Open history for an item
+  const openHistory = (item: typeof data.items[0]) => {
+    setHistoryItem(item);
+    setHistoryOpen(true);
+  };
+
+  // Calculate profit preview
   const qty = parseInt(quantitySold, 10) || 0;
   const amount = parseFloat(amountGained) || 0;
   const costOfSold = selectedEntry ? qty * selectedEntry.unitCost : 0;
@@ -105,7 +170,7 @@ export default function Sales() {
     });
   };
 
-  if (availableItems.length === 0) {
+  if (groupedItems.length === 0) {
     return (
       <div>
         <PageHeader title="Record Sale" description="Log a sale from your inventory" />
@@ -140,31 +205,63 @@ export default function Sales() {
                 Sale Details
               </CardTitle>
               <CardDescription>
-                Select an inventory entry and record your sale.
+                {selectedItemId ? 'Select an inventory batch to sell from' : 'Select an item to sell'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Step 1: Select Item */}
-              <div className="space-y-2">
-                <Label>Step 1: Select Item</Label>
-                <Select value={selectedItemId} onValueChange={handleItemChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose an item..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableItems.map(item => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Step 1: Item Selection (grouped view) */}
+              {!selectedItemId && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search items..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
 
-              {/* Step 2: Select Entry */}
-              {selectedItemId && (
-                <div className="space-y-2 animate-fade-in">
-                  <Label>Step 2: Select Inventory Entry</Label>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {filteredItems.map((item) => (
+                      <GroupedItemCard
+                        key={item.id}
+                        item={item}
+                        onClick={() => handleItemSelect(item.id)}
+                        showArrow
+                      />
+                    ))}
+                    {filteredItems.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No items match your search.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Entry Selection */}
+              {selectedItemId && !selectedEntryId && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={handleBack}>
+                      <ArrowLeft className="w-4 h-4 mr-1" />
+                      Back
+                    </Button>
+                    <span className="font-medium">{selectedItem?.name}</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="ml-auto"
+                      onClick={() => selectedItem && openHistory(selectedItem)}
+                    >
+                      <History className="w-4 h-4 mr-1" />
+                      History
+                    </Button>
+                  </div>
+
+                  <Label>Select Inventory Batch</Label>
                   <div className="grid gap-2">
                     {availableEntries.map(entry => (
                       <button
@@ -213,6 +310,15 @@ export default function Sales() {
               {/* Step 3: Sale Details */}
               {selectedEntryId && (
                 <div className="space-y-6 animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedEntryId('')}>
+                      <ArrowLeft className="w-4 h-4 mr-1" />
+                      Back
+                    </Button>
+                    <span className="font-medium">{selectedItem?.name}</span>
+                    <span className="text-muted-foreground">• {formatDate(selectedEntry?.boughtAt || '')}</span>
+                  </div>
+
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="quantity">Quantity Sold *</Label>
@@ -360,6 +466,14 @@ export default function Sales() {
           </div>
         </div>
       </form>
+
+      <ItemTransactionHistory
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        item={historyItem}
+        inventoryEntries={data.inventoryEntries}
+        sales={data.sales}
+      />
     </div>
   );
 }
