@@ -216,6 +216,36 @@ export type Database = {
           },
         ]
       }
+      otp_rate_limits: {
+        Row: {
+          attempt_count: number
+          blocked_until: string | null
+          email: string
+          first_attempt_at: string
+          id: string
+          ip_address: string | null
+          last_attempt_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          blocked_until?: string | null
+          email: string
+          first_attempt_at?: string
+          id?: string
+          ip_address?: string | null
+          last_attempt_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          blocked_until?: string | null
+          email?: string
+          first_attempt_at?: string
+          id?: string
+          ip_address?: string | null
+          last_attempt_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -383,6 +413,22 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_otp_rate_limit: {
+        Args: {
+          _block_minutes?: number
+          _email: string
+          _ip_address?: string
+          _max_attempts?: number
+          _window_minutes?: number
+        }
+        Returns: {
+          allowed: boolean
+          blocked_until: string
+          message: string
+          remaining_attempts: number
+        }[]
+      }
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
       get_admin_dashboard_stats: {
         Args: never
         Returns: {
