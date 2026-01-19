@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -56,10 +57,18 @@ import {
   Mail,
   Package,
   ShoppingCart,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Download,
+  History,
+  Ban,
+  Clock,
+  Filter,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
 
 interface UserProfile {
   id: string;
@@ -79,6 +88,27 @@ interface AllowlistEntry {
   created_at: string;
 }
 
+interface ActivityLog {
+  id: string;
+  admin_user_id: string;
+  action_type: string;
+  target_user_id: string | null;
+  target_email: string | null;
+  details: unknown;
+  created_at: string;
+}
+
+interface BlacklistEntry {
+  id: string;
+  type: 'email' | 'ip' | 'device_id';
+  value: string;
+  reason: string | null;
+  blocked_by: string;
+  created_at: string;
+  expires_at: string | null;
+  is_active: boolean;
+}
+
 const ROLE_COLORS: Record<AppRole, string> = {
   owner: 'bg-amber-500/20 text-amber-600 border-amber-500/30',
   admin: 'bg-red-500/20 text-red-600 border-red-500/30',
@@ -93,6 +123,23 @@ const ROLE_LABELS: Record<AppRole, string> = {
   supervisor: 'Supervisor',
 };
 
+const ACTION_LABELS: Record<string, string> = {
+  role_assigned: 'Assigned Role',
+  role_removed: 'Removed Role',
+  user_blacklisted: 'Blacklisted User',
+  user_unblacklisted: 'Removed from Blacklist',
+  view_as: 'Viewed As User',
+  data_exported: 'Exported User Data',
+  allowlist_added: 'Added to Allowlist',
+  allowlist_removed: 'Removed from Allowlist',
+};
+
+const BLACKLIST_TYPE_LABELS: Record<string, string> = {
+  email: 'Email',
+  ip: 'IP Address',
+  device_id: 'Device ID',
+};
+
 export default function AdminPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -101,11 +148,39 @@ export default function AdminPanel() {
   
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [allowlist, setAllowlist] = useState<AllowlistEntry[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [blacklist, setBlacklist] = useState<BlacklistEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  
+  // Form states
   const [newAllowlistEmail, setNewAllowlistEmail] = useState('');
   const [newAllowlistRole, setNewAllowlistRole] = useState<AppRole>('admin');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [newRole, setNewRole] = useState<AppRole | ''>('');
+  
+  // Blacklist form states
+  const [blacklistType, setBlacklistType] = useState<'email' | 'ip' | 'device_id'>('email');
+  const [blacklistValue, setBlacklistValue] = useState('');
+  const [blacklistReason, setBlacklistReason] = useState('');
+  const [blacklistExpiry, setBlacklistExpiry] = useState('');
+
+  // Log an admin action
+  const logAction = async (actionType: string, targetUserId?: string, targetEmail?: string, details?: Record<string, unknown>) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('admin_activity_logs') as any).insert({
+        admin_user_id: user?.id,
+        action_type: actionType,
+        target_user_id: targetUserId || null,
+        target_email: targetEmail || null,
+        details: details || {},
+      });
+    } catch (error) {
+      console.error('Failed to log action:', error);
+    }
+  };
 
   // Fetch all users with their profiles and roles
   const fetchUsers = async () => {
@@ -125,29 +200,24 @@ export default function AdminPanel() {
 
       if (rolesError) throw rolesError;
 
-      // Fetch inventory counts
-      const { data: inventoryCounts, error: invError } = await supabase
-        .from('inventory_entries')
-        .select('user_id');
+      // Fetch counts using the security definer function for each user
+      const usersWithRoles: UserProfile[] = await Promise.all(
+        (profiles || []).map(async (profile) => {
+          const userRole = roles?.find(r => r.user_id === profile.user_id);
+          
+          // Use RPC to get counts bypassing RLS
+          const { data: stats } = await supabase.rpc('get_admin_user_stats', {
+            _user_id: profile.user_id
+          });
 
-      // Fetch sales counts
-      const { data: salesCounts, error: salesError } = await supabase
-        .from('sales')
-        .select('user_id');
-
-      // Map profiles with roles and counts
-      const usersWithRoles: UserProfile[] = (profiles || []).map(profile => {
-        const userRole = roles?.find(r => r.user_id === profile.user_id);
-        const invCount = inventoryCounts?.filter(i => i.user_id === profile.user_id).length || 0;
-        const saleCount = salesCounts?.filter(s => s.user_id === profile.user_id).length || 0;
-
-        return {
-          ...profile,
-          role: userRole?.role as AppRole | undefined,
-          inventoryCount: invCount,
-          salesCount: saleCount,
-        };
-      });
+          return {
+            ...profile,
+            role: userRole?.role as AppRole | undefined,
+            inventoryCount: stats?.[0]?.inventory_count || 0,
+            salesCount: stats?.[0]?.sales_count || 0,
+          };
+        })
+      );
 
       setUsers(usersWithRoles);
     } catch (error) {
@@ -175,12 +245,61 @@ export default function AdminPanel() {
     }
   };
 
+  // Fetch activity logs
+  const fetchActivityLogs = async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('admin_activity_logs') as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      setActivityLogs((data || []) as ActivityLog[]);
+    } catch (error) {
+      console.error('Error fetching activity logs:', error);
+    }
+  };
+
+  // Fetch blacklist
+  const fetchBlacklist = async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('blacklist') as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setBlacklist((data || []) as BlacklistEntry[]);
+    } catch (error) {
+      console.error('Error fetching blacklist:', error);
+    }
+  };
+
   useEffect(() => {
     if (!roleLoading && hasAdminAccess) {
       fetchUsers();
       fetchAllowlist();
+      fetchActivityLogs();
+      fetchBlacklist();
     }
   }, [roleLoading, hasAdminAccess, currentUserRole]);
+
+  // Filtered users based on search and role filter
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = searchQuery === '' || 
+        user.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.user_id.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesRole = roleFilter === 'all' || 
+        (roleFilter === 'none' && !user.role) ||
+        user.role === roleFilter;
+
+      return matchesSearch && matchesRole;
+    });
+  }, [users, searchQuery, roleFilter]);
 
   // Add email to allowlist
   const addToAllowlist = async () => {
@@ -196,11 +315,14 @@ export default function AdminPanel() {
 
       if (error) throw error;
       
+      await logAction('allowlist_added', undefined, newAllowlistEmail.trim().toLowerCase(), { role: newAllowlistRole });
       toast.success('Email added to allowlist');
       setNewAllowlistEmail('');
       fetchAllowlist();
-    } catch (error: any) {
-      if (error.code === '23505') {
+      fetchActivityLogs();
+    } catch (error: unknown) {
+      const err = error as { code?: string };
+      if (err.code === '23505') {
         toast.error('Email already in allowlist');
       } else {
         toast.error('Failed to add email');
@@ -209,7 +331,7 @@ export default function AdminPanel() {
   };
 
   // Remove from allowlist
-  const removeFromAllowlist = async (id: string) => {
+  const removeFromAllowlist = async (id: string, email: string) => {
     try {
       const { error } = await supabase
         .from('admin_email_allowlist')
@@ -218,8 +340,10 @@ export default function AdminPanel() {
 
       if (error) throw error;
       
+      await logAction('allowlist_removed', undefined, email);
       toast.success('Email removed from allowlist');
       fetchAllowlist();
+      fetchActivityLogs();
     } catch (error) {
       toast.error('Failed to remove email');
     }
@@ -247,18 +371,26 @@ export default function AdminPanel() {
 
       if (error) throw error;
 
+      await logAction('role_assigned', selectedUser.user_id, selectedUser.display_name || undefined, { 
+        new_role: newRole,
+        previous_role: selectedUser.role || 'none'
+      });
+
       toast.success(`Role updated to ${ROLE_LABELS[newRole]}`);
       setSelectedUser(null);
       setNewRole('');
       fetchUsers();
+      fetchActivityLogs();
     } catch (error) {
       toast.error('Failed to update role');
     }
   };
 
   // Remove role from user
-  const removeRole = async (userId: string) => {
+  const removeRole = async (userId: string, userName?: string) => {
     try {
+      const targetUser = users.find(u => u.user_id === userId);
+      
       const { error } = await supabase
         .from('user_roles')
         .delete()
@@ -266,8 +398,10 @@ export default function AdminPanel() {
 
       if (error) throw error;
 
+      await logAction('role_removed', userId, userName, { previous_role: targetUser?.role });
       toast.success('Role removed');
       fetchUsers();
+      fetchActivityLogs();
     } catch (error) {
       toast.error('Failed to remove role');
     }
@@ -275,6 +409,7 @@ export default function AdminPanel() {
 
   // View as user
   const handleViewAs = (profile: UserProfile) => {
+    logAction('view_as', profile.user_id, profile.display_name || undefined);
     setViewAsUser({
       id: profile.user_id,
       email: profile.display_name || 'User',
@@ -283,6 +418,135 @@ export default function AdminPanel() {
     toast.success(`Viewing as ${profile.display_name || 'User'}`);
     navigate('/');
   };
+
+  // Export user data
+  const exportUserData = async (profile: UserProfile) => {
+    try {
+      toast.loading('Exporting user data...');
+      
+      // Fetch all user data
+      const [inventoryRes, salesRes, categoriesRes, itemsRes] = await Promise.all([
+        supabase.from('inventory_entries').select('*').eq('user_id', profile.user_id),
+        supabase.from('sales').select('*').eq('user_id', profile.user_id),
+        supabase.from('categories').select('*').eq('user_id', profile.user_id),
+        supabase.from('items').select('*').eq('user_id', profile.user_id),
+      ]);
+
+      const exportData = {
+        user: {
+          id: profile.user_id,
+          display_name: profile.display_name,
+          email: profile.email,
+          role: profile.role,
+        },
+        categories: categoriesRes.data || [],
+        items: itemsRes.data || [],
+        inventory_entries: inventoryRes.data || [],
+        sales: salesRes.data || [],
+        exported_at: new Date().toISOString(),
+        exported_by: user?.id,
+      };
+
+      // Create and download file
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `user-data-${profile.display_name || profile.user_id}-${format(new Date(), 'yyyy-MM-dd')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      await logAction('data_exported', profile.user_id, profile.display_name || undefined);
+      toast.dismiss();
+      toast.success('User data exported successfully');
+      fetchActivityLogs();
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to export user data');
+    }
+  };
+
+  // Add to blacklist
+  const addToBlacklist = async () => {
+    if (!blacklistValue.trim()) {
+      toast.error('Please enter a value to blacklist');
+      return;
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('blacklist') as any).insert({
+        type: blacklistType,
+        value: blacklistValue.trim().toLowerCase(),
+        reason: blacklistReason.trim() || null,
+        blocked_by: user?.id,
+        expires_at: blacklistExpiry ? new Date(blacklistExpiry).toISOString() : null,
+      });
+
+      if (error) throw error;
+
+      await logAction('user_blacklisted', undefined, blacklistValue.trim().toLowerCase(), {
+        type: blacklistType,
+        reason: blacklistReason,
+        expires_at: blacklistExpiry || 'never',
+      });
+
+      toast.success(`${BLACKLIST_TYPE_LABELS[blacklistType]} added to blacklist`);
+      setBlacklistValue('');
+      setBlacklistReason('');
+      setBlacklistExpiry('');
+      fetchBlacklist();
+      fetchActivityLogs();
+    } catch (error: unknown) {
+      const err = error as { code?: string };
+      if (err.code === '23505') {
+        toast.error('This value is already blacklisted');
+      } else {
+        toast.error('Failed to add to blacklist');
+      }
+    }
+  };
+
+  // Remove from blacklist
+  const removeFromBlacklist = async (entry: BlacklistEntry) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('blacklist') as any)
+        .delete()
+        .eq('id', entry.id);
+
+      if (error) throw error;
+
+      await logAction('user_unblacklisted', undefined, entry.value, { type: entry.type });
+      toast.success('Removed from blacklist');
+      fetchBlacklist();
+      fetchActivityLogs();
+    } catch (error) {
+      toast.error('Failed to remove from blacklist');
+    }
+  };
+
+  // Toggle blacklist active status
+  const toggleBlacklistActive = async (entry: BlacklistEntry) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('blacklist') as any)
+        .update({ is_active: !entry.is_active })
+        .eq('id', entry.id);
+
+      if (error) throw error;
+
+      toast.success(entry.is_active ? 'Blacklist entry deactivated' : 'Blacklist entry activated');
+      fetchBlacklist();
+    } catch (error) {
+      toast.error('Failed to update blacklist entry');
+    }
+  };
+
+  // Check if current user can manage users (owner or admin)
+  const canManageUsers = currentUserRole === 'owner' || currentUserRole === 'admin';
 
   // Show loading or access denied
   if (roleLoading) {
@@ -331,11 +595,21 @@ export default function AdminPanel() {
       </PageHeader>
 
       <Tabs defaultValue="users" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="users" className="gap-2">
             <Users className="w-4 h-4" />
             Users
           </TabsTrigger>
+          <TabsTrigger value="activity" className="gap-2">
+            <History className="w-4 h-4" />
+            Activity Logs
+          </TabsTrigger>
+          {canManageUsers && (
+            <TabsTrigger value="blacklist" className="gap-2">
+              <Ban className="w-4 h-4" />
+              Blacklist
+            </TabsTrigger>
+          )}
           {currentUserRole === 'owner' && (
             <TabsTrigger value="allowlist" className="gap-2">
               <Mail className="w-4 h-4" />
@@ -356,184 +630,446 @@ export default function AdminPanel() {
                 View and manage user accounts and their data
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Search and Filter */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, email, or ID..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger className="w-36">
+                      <Filter className="w-4 h-4 mr-2" />
+                      <SelectValue placeholder="Filter role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="none">No Role</SelectItem>
+                      <SelectItem value="owner">Owner</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="supervisor">Supervisor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="icon" onClick={fetchUsers}>
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Users Table */}
               {isLoading ? (
                 <div className="space-y-2">
                   {[...Array(3)].map((_, i) => (
                     <Skeleton key={i} className="h-16 w-full" />
                   ))}
                 </div>
-              ) : users.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No users found</p>
+              ) : filteredUsers.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  {searchQuery || roleFilter !== 'all' ? 'No users match your filters' : 'No users found'}
+                </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead className="text-center">Inventory</TableHead>
-                      <TableHead className="text-center">Sales</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((profile) => (
-                      <TableRow key={profile.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={profile.avatar_url || undefined} />
-                              <AvatarFallback>
-                                {(profile.display_name || 'U')[0].toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">
-                                {profile.display_name || 'Unnamed User'}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {profile.user_id === user?.id && '(You)'}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead className="text-center">Inventory</TableHead>
+                        <TableHead className="text-center">Sales</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUsers.map((profile) => (
+                        <TableRow key={profile.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={profile.avatar_url || undefined} />
+                                <AvatarFallback>
+                                  {(profile.display_name || 'U')[0].toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">
+                                  {profile.display_name || 'Unnamed User'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {profile.user_id === user?.id && '(You)'}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {profile.role ? (
-                            <Badge variant="outline" className={ROLE_COLORS[profile.role]}>
-                              {ROLE_LABELS[profile.role]}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">User</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <Package className="w-4 h-4 text-muted-foreground" />
-                            {profile.inventoryCount}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <ShoppingCart className="w-4 h-4 text-muted-foreground" />
-                            {profile.salesCount}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {/* View As Button */}
-                            {profile.user_id !== user?.id && (
+                          </TableCell>
+                          <TableCell>
+                            {profile.role ? (
+                              <Badge variant="outline" className={ROLE_COLORS[profile.role]}>
+                                {ROLE_LABELS[profile.role]}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">User</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Package className="w-4 h-4 text-muted-foreground" />
+                              {profile.inventoryCount}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <ShoppingCart className="w-4 h-4 text-muted-foreground" />
+                              {profile.salesCount}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2 flex-wrap">
+                              {/* Export Data Button */}
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleViewAs(profile)}
+                                onClick={() => exportUserData(profile)}
                                 className="gap-1"
                               >
-                                <Eye className="w-4 h-4" />
-                                View As
+                                <Download className="w-4 h-4" />
+                                Export
                               </Button>
-                            )}
 
-                            {/* Role Management */}
-                            {profile.user_id !== user?.id && (
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedUser(profile);
-                                      setNewRole(profile.role || '');
-                                    }}
-                                    className="gap-1"
-                                  >
-                                    <Shield className="w-4 h-4" />
-                                    Role
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Manage Role</DialogTitle>
-                                    <DialogDescription>
-                                      Assign or change role for {profile.display_name || 'this user'}
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <div className="space-y-4 py-4">
-                                    <div className="space-y-2">
-                                      <Label>Role</Label>
-                                      <Select
-                                        value={newRole}
-                                        onValueChange={(v) => setNewRole(v as AppRole)}
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select role" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {currentUserRole === 'owner' && (
-                                            <>
-                                              <SelectItem value="admin">Admin</SelectItem>
-                                              <SelectItem value="manager">Manager</SelectItem>
-                                              <SelectItem value="supervisor">Supervisor</SelectItem>
-                                            </>
-                                          )}
-                                          {currentUserRole === 'admin' && (
-                                            <>
-                                              <SelectItem value="manager">Manager</SelectItem>
-                                              <SelectItem value="supervisor">Supervisor</SelectItem>
-                                            </>
-                                          )}
-                                          {currentUserRole === 'manager' && (
-                                            <SelectItem value="supervisor">Supervisor</SelectItem>
-                                          )}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-                                  <DialogFooter className="gap-2">
-                                    {profile.role && (
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button variant="destructive" size="sm">
-                                            Remove Role
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Remove Role</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              This will remove admin access for this user. They will become a regular user.
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction
-                                              onClick={() => {
-                                                removeRole(profile.user_id);
-                                                setSelectedUser(null);
-                                              }}
-                                            >
-                                              Remove
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    )}
-                                    <Button onClick={assignRole} disabled={!newRole}>
-                                      Save Role
+                              {/* View As Button */}
+                              {profile.user_id !== user?.id && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewAs(profile)}
+                                  className="gap-1"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  View As
+                                </Button>
+                              )}
+
+                              {/* Role Management */}
+                              {profile.user_id !== user?.id && (
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedUser(profile);
+                                        setNewRole(profile.role || '');
+                                      }}
+                                      className="gap-1"
+                                    >
+                                      <Shield className="w-4 h-4" />
+                                      Role
                                     </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-                            )}
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Manage Role</DialogTitle>
+                                      <DialogDescription>
+                                        Assign or change role for {profile.display_name || 'this user'}
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4 py-4">
+                                      <div className="space-y-2">
+                                        <Label>Role</Label>
+                                        <Select
+                                          value={newRole}
+                                          onValueChange={(v) => setNewRole(v as AppRole)}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select role" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {currentUserRole === 'owner' && (
+                                              <>
+                                                <SelectItem value="admin">Admin</SelectItem>
+                                                <SelectItem value="manager">Manager</SelectItem>
+                                                <SelectItem value="supervisor">Supervisor</SelectItem>
+                                              </>
+                                            )}
+                                            {currentUserRole === 'admin' && (
+                                              <>
+                                                <SelectItem value="manager">Manager</SelectItem>
+                                                <SelectItem value="supervisor">Supervisor</SelectItem>
+                                              </>
+                                            )}
+                                            {currentUserRole === 'manager' && (
+                                              <SelectItem value="supervisor">Supervisor</SelectItem>
+                                            )}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </div>
+                                    <DialogFooter className="gap-2">
+                                      {profile.role && (
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button variant="destructive" size="sm">
+                                              Remove Role
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Remove Role</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                This will remove admin access for this user. They will become a regular user.
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction
+                                                onClick={() => {
+                                                  removeRole(profile.user_id, profile.display_name || undefined);
+                                                  setSelectedUser(null);
+                                                }}
+                                              >
+                                                Remove
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      )}
+                                      <Button onClick={assignRole} disabled={!newRole}>
+                                        Save Role
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              
+              <div className="text-sm text-muted-foreground">
+                Showing {filteredUsers.length} of {users.length} users
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Activity Logs Tab */}
+        <TabsContent value="activity">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="w-5 h-5" />
+                    Activity Logs
+                  </CardTitle>
+                  <CardDescription>
+                    Track all admin actions and changes
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchActivityLogs}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {activityLogs.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No activity logs yet
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {activityLogs.map((log) => {
+                    const adminUser = users.find(u => u.user_id === log.admin_user_id);
+                    const targetUser = log.target_user_id ? users.find(u => u.user_id === log.target_user_id) : null;
+                    
+                    return (
+                      <div key={log.id} className="flex items-start gap-4 p-4 rounded-lg border bg-card">
+                        <div className="flex-shrink-0">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={adminUser?.avatar_url || undefined} />
+                            <AvatarFallback>
+                              {(adminUser?.display_name || 'A')[0].toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{adminUser?.display_name || 'Unknown Admin'}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {ACTION_LABELS[log.action_type] || log.action_type}
+                            </Badge>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          {(targetUser || log.target_email) && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Target: {targetUser?.display_name || log.target_email || 'Unknown'}
+                            </p>
+                          )}
+                          {Object.keys(log.details || {}).length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {JSON.stringify(log.details)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground flex-shrink-0">
+                          <Clock className="w-3 h-3 inline mr-1" />
+                          {format(new Date(log.created_at), 'MMM d, yyyy HH:mm')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Blacklist Tab */}
+        {canManageUsers && (
+          <TabsContent value="blacklist">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Ban className="w-5 h-5" />
+                  Blacklist Management
+                </CardTitle>
+                <CardDescription>
+                  Block users by email, IP address, or device ID
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Add to blacklist form */}
+                <div className="space-y-4 p-4 rounded-lg border bg-muted/50">
+                  <h4 className="font-medium">Add to Blacklist</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Type</Label>
+                      <Select value={blacklistType} onValueChange={(v) => setBlacklistType(v as typeof blacklistType)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="email">Email Address</SelectItem>
+                          <SelectItem value="ip">IP Address</SelectItem>
+                          <SelectItem value="device_id">Device ID</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Value</Label>
+                      <Input
+                        placeholder={blacklistType === 'email' ? 'user@example.com' : blacklistType === 'ip' ? '192.168.1.1' : 'device-uuid'}
+                        value={blacklistValue}
+                        onChange={(e) => setBlacklistValue(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Reason (optional)</Label>
+                      <Textarea
+                        placeholder="Reason for blacklisting..."
+                        value={blacklistReason}
+                        onChange={(e) => setBlacklistReason(e.target.value)}
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Expires (optional)</Label>
+                      <Input
+                        type="datetime-local"
+                        value={blacklistExpiry}
+                        onChange={(e) => setBlacklistExpiry(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={addToBlacklist} className="gap-2">
+                    <Ban className="w-4 h-4" />
+                    Add to Blacklist
+                  </Button>
+                </div>
+
+                {/* Blacklist table */}
+                {blacklist.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No blacklist entries yet
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Value</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Expires</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {blacklist.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell>
+                            <Badge variant="outline">{BLACKLIST_TYPE_LABELS[entry.type]}</Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">{entry.value}</TableCell>
+                          <TableCell className="max-w-xs truncate">{entry.reason || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant={entry.is_active ? 'destructive' : 'secondary'}>
+                              {entry.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {entry.expires_at ? format(new Date(entry.expires_at), 'MMM d, yyyy') : 'Never'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleBlacklistActive(entry)}
+                              >
+                                {entry.is_active ? 'Deactivate' : 'Activate'}
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Remove from Blacklist</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently remove this entry from the blacklist.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => removeFromBlacklist(entry)}>
+                                      Remove
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* Email Allowlist Tab (Owner only) */}
         {currentUserRole === 'owner' && (
@@ -603,13 +1139,13 @@ export default function AdminPanel() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {new Date(entry.created_at).toLocaleDateString()}
+                            {format(new Date(entry.created_at), 'MMM d, yyyy')}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => removeFromAllowlist(entry.id)}
+                              onClick={() => removeFromAllowlist(entry.id, entry.email)}
                             >
                               <Trash2 className="w-4 h-4 text-destructive" />
                             </Button>
