@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CurrencyUnit } from '@/types/inventory';
+import { SalesChart } from '@/components/dashboard/SalesChart';
+import { ProfitChart } from '@/components/dashboard/ProfitChart';
+import { TopItemsChart } from '@/components/dashboard/TopItemsChart';
 
 export default function Dashboard() {
   const { data, calculateSaleProfit } = useApp();
@@ -328,6 +331,25 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3 mt-6">
+        <SalesChart 
+          sales={data.sales} 
+          entries={data.inventoryEntries}
+          calculateSaleProfit={calculateSaleProfit}
+        />
+        <ProfitChart 
+          sales={data.sales} 
+          entries={data.inventoryEntries}
+          calculateSaleProfit={calculateSaleProfit}
+        />
+        <TopItemsChart 
+          sales={data.sales} 
+          entries={data.inventoryEntries}
+          calculateSaleProfit={calculateSaleProfit}
+        />
       </div>
     </div>
   );
