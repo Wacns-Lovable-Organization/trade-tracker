@@ -51,8 +51,8 @@ export default function Categories() {
   };
 
   const getCategoryUsageCount = (categoryId: string) => {
-    return data.items.filter(i => i.defaultCategoryId === categoryId).length +
-      data.inventoryEntries.filter(e => e.snapshotCategoryId === categoryId).length;
+    // Count unique items that have this category assigned
+    return data.items.filter(i => i.defaultCategoryId === categoryId).length;
   };
 
   return (
