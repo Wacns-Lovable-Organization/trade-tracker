@@ -69,7 +69,8 @@ import {
   RefreshCw,
   LayoutDashboard,
   Smartphone,
-  ShieldOff
+  ShieldOff,
+  Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -78,6 +79,7 @@ import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { DevicesTab } from '@/components/admin/DevicesTab';
 import { ActivityLogViewer } from '@/components/admin/ActivityLogViewer';
 import { ImpersonationConfirmDialog } from '@/components/admin/ImpersonationConfirmDialog';
+import { FeatureFlagsTab } from '@/components/admin/FeatureFlagsTab';
 
 interface UserProfile {
   id: string;
@@ -624,6 +626,12 @@ export default function AdminPanel() {
               Blacklist
             </TabsTrigger>
           )}
+          {canManageUsers && (
+            <TabsTrigger value="features" className="gap-2">
+              <Settings className="w-4 h-4" />
+              Features
+            </TabsTrigger>
+          )}
           {currentUserRole === 'owner' && (
             <TabsTrigger value="allowlist" className="gap-2">
               <Mail className="w-4 h-4" />
@@ -1143,6 +1151,13 @@ export default function AdminPanel() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+        )}
+
+        {/* Feature Flags Tab */}
+        {canManageUsers && (
+          <TabsContent value="features">
+            <FeatureFlagsTab />
           </TabsContent>
         )}
       </Tabs>

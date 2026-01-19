@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useViewAs } from '@/contexts/ViewAsContext';
 import { useDeviceTracking } from '@/hooks/useDeviceTracking';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 import {
   Package,
   ShoppingCart,
@@ -37,38 +39,47 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { LowStockAlert } from '@/components/LowStockAlert';
 
 interface NavItem {
-  label: string;
+  labelKey: string;
   href: string;
   icon: React.ElementType;
   adminOnly?: boolean;
+  featureKey?: string;
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/', icon: BarChart3 },
-  { label: 'Add Inventory', href: '/inventory/add', icon: Package },
-  { label: 'Inventory List', href: '/inventory', icon: ShoppingCart },
-  { label: 'Record Sale', href: '/sales', icon: TrendingUp },
-  { label: 'Profit Simulator', href: '/simulate', icon: Calculator },
-  { label: 'Categories', href: '/categories', icon: Tags },
-  { label: 'Suppliers', href: '/suppliers', icon: Truck },
-  { label: 'Expenses', href: '/expenses', icon: Receipt },
-  { label: 'Reports', href: '/reports', icon: FileText },
-  { label: 'Settings', href: '/settings', icon: Settings },
-  { label: 'Admin Panel', href: '/admin', icon: Shield, adminOnly: true },
+  { labelKey: 'nav.dashboard', href: '/', icon: BarChart3 },
+  { labelKey: 'nav.addInventory', href: '/inventory/add', icon: Package },
+  { labelKey: 'nav.inventory', href: '/inventory', icon: ShoppingCart },
+  { labelKey: 'nav.sales', href: '/sales', icon: TrendingUp },
+  { labelKey: 'nav.profitSimulator', href: '/simulate', icon: Calculator, featureKey: 'profit_simulator' },
+  { labelKey: 'nav.categories', href: '/categories', icon: Tags },
+  { labelKey: 'nav.suppliers', href: '/suppliers', icon: Truck, featureKey: 'suppliers_management' },
+  { labelKey: 'nav.expenses', href: '/expenses', icon: Receipt, featureKey: 'expense_tracking' },
+  { labelKey: 'nav.reports', href: '/reports', icon: FileText },
+  { labelKey: 'nav.settings', href: '/settings', icon: Settings },
+  { labelKey: 'nav.adminPanel', href: '/admin', icon: Shield, adminOnly: true },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const { hasAdminAccess, isLoading: roleLoading } = useUserRole();
   const { isViewingAs } = useViewAs();
+  const { isFeatureEnabled } = useFeatureFlags();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Track device for admin visibility
   useDeviceTracking();
 
-  // Filter nav items based on admin access
-  const filteredNavItems = navItems.filter(item => !item.adminOnly || hasAdminAccess);
+  // Filter nav items based on admin access and feature flags
+  const filteredNavItems = navItems.filter(item => {
+    // Check admin access
+    if (item.adminOnly && !hasAdminAccess) return false;
+    // Check feature flags
+    if (item.featureKey && !isFeatureEnabled(item.featureKey)) return false;
+    return true;
+  });
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -121,13 +132,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/profile">
-                    <User className="mr-2 h-4 w-4" />
-                    Edit Profile
+                    <User className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                    {t('profile.editProfile')}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
+                  <LogOut className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                  {t('common.logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -161,7 +172,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <item.icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
+                <span className="font-medium">{t(item.labelKey)}</span>
               </Link>
             ))}
           </nav>
@@ -202,7 +213,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   ? 'text-primary-foreground'
                   : 'text-muted-foreground group-hover:text-foreground'
               )} />
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium">{t(item.labelKey)}</span>
             </Link>
           ))}
         </nav>
@@ -234,13 +245,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link to="/profile">
-                  <User className="mr-2 h-4 w-4" />
-                  Edit Profile
+                  <User className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                  {t('profile.editProfile')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
+                <LogOut className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                {t('common.logout')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
