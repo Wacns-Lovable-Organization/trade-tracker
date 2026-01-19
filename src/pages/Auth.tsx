@@ -9,17 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Package, Loader2, Mail, Lock, User, ArrowLeft, KeyRound, Gamepad2 } from 'lucide-react';
 import { z } from 'zod';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { supabase } from '@/integrations/supabase/client';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
-type AuthView = 'main' | 'signup-verify' | 'forgot-password' | 'reset-password-form';
-
-function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
+type AuthView = 'main' | 'forgot-password' | 'reset-password-form';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -38,11 +33,6 @@ export default function Auth() {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [growId, setGrowId] = useState('');
-  
-  // OTP verification state
-  const [pendingOTP, setPendingOTP] = useState('');
-  const [enteredOTP, setEnteredOTP] = useState('');
-  const [otpExpiry, setOtpExpiry] = useState<Date | null>(null);
   
   // Forgot password state
   const [resetEmail, setResetEmail] = useState('');
@@ -68,23 +58,6 @@ export default function Auth() {
       navigate('/', { replace: true });
     }
   }, [user, authLoading, navigate, view]);
-
-  const sendOTPEmail = async (email: string, otp: string, type: 'signup' | 'password_reset') => {
-    const response = await supabase.functions.invoke('send-otp', {
-      body: { email, otp, type },
-    });
-    
-    if (response.error) {
-      throw new Error(response.error.message || 'Failed to send verification email');
-    }
-    
-    // Check for rate limit response
-    if (response.data?.error) {
-      throw new Error(response.data.error);
-    }
-    
-    return response.data;
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +90,7 @@ export default function Auth() {
     }
   };
 
-  const handleSignupSubmit = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
@@ -148,40 +121,8 @@ export default function Auth() {
     
     setIsSubmitting(true);
     
-    try {
-      const otp = generateOTP();
-      await sendOTPEmail(signupEmail, otp, 'signup');
-      
-      setPendingOTP(otp);
-      setOtpExpiry(new Date(Date.now() + 10 * 60 * 1000)); // 10 minutes
-      setView('signup-verify');
-      toast.success('Verification code sent to your email!');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to send verification code');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (enteredOTP.length !== 6) {
-      toast.error('Please enter the complete 6-digit code');
-      return;
-    }
+    const { error } = await signUp(signupEmail, signupPassword, displayName, growId.trim().toUpperCase());
     
-    if (otpExpiry && new Date() > otpExpiry) {
-      toast.error('Verification code has expired. Please try again.');
-      setView('main');
-      return;
-    }
-    
-    if (enteredOTP !== pendingOTP) {
-      toast.error('Invalid verification code');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    const { error } = await signUp(signupEmail, signupPassword, displayName, growId.trim().toUpperCase() || undefined);
     setIsSubmitting(false);
     
     if (error) {
@@ -192,7 +133,6 @@ export default function Auth() {
       } else {
         toast.error(error.message);
       }
-      setView('main');
     } else {
       toast.success('Account created successfully!');
       navigate('/', { replace: true });
@@ -259,23 +199,6 @@ export default function Auth() {
       navigate('/', { replace: true });
     } catch (error: any) {
       toast.error(error.message || 'Failed to update password');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const resendOTP = async () => {
-    setIsSubmitting(true);
-    
-    try {
-      const otp = generateOTP();
-      await sendOTPEmail(signupEmail, otp, 'signup');
-      
-      setPendingOTP(otp);
-      setOtpExpiry(new Date(Date.now() + 10 * 60 * 1000));
-      toast.success('New verification code sent!');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to resend code');
     } finally {
       setIsSubmitting(false);
     }
@@ -358,81 +281,6 @@ export default function Auth() {
     );
   }
 
-  // OTP Verification View for Signup
-  if (view === 'signup-verify') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md relative">
-          <CardHeader className="text-center space-y-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute left-4 top-4"
-              onClick={() => setView('main')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
-            <div className="flex justify-center mb-2 pt-4">
-              <div className="p-3 rounded-xl bg-gradient-primary">
-                <Mail className="h-8 w-8 text-white" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl">Verify Your Email</CardTitle>
-            <CardDescription>
-              We sent a 6-digit code to <strong>{signupEmail}</strong>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex justify-center">
-              <InputOTP
-                maxLength={6}
-                value={enteredOTP}
-                onChange={setEnteredOTP}
-              >
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
-            
-            <Button
-              onClick={handleVerifyOTP}
-              className="w-full"
-              disabled={isSubmitting || enteredOTP.length !== 6}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                'Verify & Create Account'
-              )}
-            </Button>
-            
-            <p className="text-center text-sm text-muted-foreground">
-              Didn't receive the code?{' '}
-              <Button
-                variant="link"
-                className="p-0 h-auto"
-                onClick={resendOTP}
-                disabled={isSubmitting}
-              >
-                Resend
-              </Button>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // Forgot Password View
   if (view === 'forgot-password') {
     return (
@@ -503,14 +351,14 @@ export default function Auth() {
               <Package className="h-8 w-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Inventory Tracker</CardTitle>
+          <CardTitle className="text-2xl">GrowStock</CardTitle>
           <CardDescription>
-            Sign in to sync your inventory across all devices
+            Your inventory management solution
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
@@ -563,19 +411,35 @@ export default function Auth() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
+                      Logging in...
                     </>
                   ) : (
-                    'Sign In'
+                    'Login'
                   )}
                 </Button>
               </form>
             </TabsContent>
             
             <TabsContent value="signup">
-              <form onSubmit={handleSignupSubmit} className="space-y-4">
+              <form onSubmit={handleSignup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="display-name">Display Name (Optional)</Label>
+                  <Label htmlFor="signup-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="display-name">Display Name (optional)</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -596,33 +460,16 @@ export default function Auth() {
                     <Input
                       id="grow-id"
                       type="text"
-                      placeholder="Your in-game name"
+                      placeholder="Your Growtopia GrowID"
                       value={growId}
                       onChange={(e) => setGrowId(e.target.value.toUpperCase())}
-                      className="pl-10 uppercase"
-                      maxLength={20}
-                      required
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Your unique in-game identity (required, must be unique)
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
                       className="pl-10"
                       required
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Your in-game GrowID (will be converted to uppercase)
+                  </p>
                 </div>
                 
                 <div className="space-y-2">
@@ -642,11 +489,11 @@ export default function Auth() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Label htmlFor="signup-confirm-password">Confirm Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="confirm-password"
+                      id="signup-confirm-password"
                       type="password"
                       placeholder="••••••••"
                       value={signupConfirmPassword}
@@ -661,10 +508,10 @@ export default function Auth() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending verification...
+                      Creating account...
                     </>
                   ) : (
-                    'Continue'
+                    'Create Account'
                   )}
                 </Button>
               </form>
