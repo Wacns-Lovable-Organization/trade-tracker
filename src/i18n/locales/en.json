@@ -58,20 +58,6 @@
     "active": "Active",
     "inactive": "Inactive"
   },
-  "nav": {
-    "dashboard": "Dashboard",
-    "inventory": "Inventory",
-    "addInventory": "Add Inventory",
-    "sales": "Sales",
-    "categories": "Categories",
-    "suppliers": "Suppliers",
-    "expenses": "Expenses",
-    "reports": "Reports",
-    "profitSimulator": "Profit Simulator",
-    "settings": "Settings",
-    "adminPanel": "Admin Panel",
-    "install": "Install App"
-  },
   "dashboard": {
     "title": "Dashboard",
     "description": "Overview of your inventory and sales performance",
