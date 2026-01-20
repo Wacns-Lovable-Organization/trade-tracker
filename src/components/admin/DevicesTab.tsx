@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
   TableBody,
@@ -22,6 +23,24 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -37,7 +56,11 @@ import {
   Ban,
   Info,
   Copy,
-  Check
+  Check,
+  LogOut,
+  MoreVertical,
+  Users,
+  User
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -69,6 +92,7 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const fetchDevices = async () => {
     setIsLoading(true);
@@ -132,6 +156,69 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
     }
   };
 
+  // Logout a specific device (set is_online to false)
+  const logoutDevice = async (deviceId: string, deviceName: string) => {
+    setIsLoggingOut(true);
+    try {
+      const { error } = await supabase
+        .from('user_devices')
+        .update({ is_online: false })
+        .eq('device_id', deviceId);
+
+      if (error) throw error;
+      
+      toast.success(`Logged out device: ${deviceName}`);
+      await fetchDevices();
+    } catch (error) {
+      console.error('Failed to logout device:', error);
+      toast.error('Failed to logout device');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  // Logout all devices for a specific user
+  const logoutUserDevices = async (userId: string, userName: string) => {
+    setIsLoggingOut(true);
+    try {
+      const { error } = await supabase
+        .from('user_devices')
+        .update({ is_online: false })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      
+      toast.success(`Logged out all devices for: ${userName}`);
+      await fetchDevices();
+    } catch (error) {
+      console.error('Failed to logout user devices:', error);
+      toast.error('Failed to logout user devices');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  // Logout all devices for all users
+  const logoutAllDevices = async () => {
+    setIsLoggingOut(true);
+    try {
+      const { error } = await supabase
+        .from('user_devices')
+        .update({ is_online: false })
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Update all rows
+
+      if (error) throw error;
+      
+      toast.success('Logged out all devices for all users');
+      await fetchDevices();
+    } catch (error) {
+      console.error('Failed to logout all devices:', error);
+      toast.error('Failed to logout all devices');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -153,7 +240,7 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Smartphone className="w-5 h-5" />
@@ -163,10 +250,40 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
               Track user devices and their online status. Copy device IDs to add to blacklist.
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchDevices}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={fetchDevices}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            
+            {/* Bulk Logout Actions */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={isLoggingOut}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout All
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Logout All Devices?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will mark all {devices.filter(d => d.is_online).length} online devices as offline. 
+                    Users will need to refresh or re-authenticate to be tracked as online again.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={logoutAllDevices}
+                    className="bg-destructive text-destructive-foreground"
+                  >
+                    Logout All Devices
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -272,7 +389,7 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
                       </Tooltip>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
                         {/* Device Details Dialog */}
                         <Dialog>
                           <DialogTrigger asChild>
@@ -280,67 +397,90 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
                               <Info className="w-4 h-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-lg">
+                          <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
                             <DialogHeader>
                               <DialogTitle>Device Details</DialogTitle>
                               <DialogDescription>
                                 Full information about this device
                               </DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className="text-muted-foreground">Device ID</span>
-                                  <p className="font-mono text-xs break-all">{device.device_id}</p>
+                            <ScrollArea className="flex-1 pr-4">
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <span className="text-muted-foreground">Device ID</span>
+                                    <p className="font-mono text-xs break-all">{device.device_id}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">IP Address</span>
+                                    <p className="font-mono">{device.ip_address || 'Not available'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Browser</span>
+                                    <p>{device.browser || 'Unknown'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Operating System</span>
+                                    <p>{device.os || 'Unknown'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Device Type</span>
+                                    <p className="capitalize">{device.device_type || 'Unknown'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">First Seen</span>
+                                    <p>{format(new Date(device.first_seen_at), 'PPp')}</p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <span className="text-muted-foreground">IP Address</span>
-                                  <p className="font-mono">{device.ip_address || 'Not available'}</p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Browser</span>
-                                  <p>{device.browser || 'Unknown'}</p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Operating System</span>
-                                  <p>{device.os || 'Unknown'}</p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Device Type</span>
-                                  <p className="capitalize">{device.device_type || 'Unknown'}</p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">First Seen</span>
-                                  <p>{format(new Date(device.first_seen_at), 'PPp')}</p>
-                                </div>
+                                {device.device_info && typeof device.device_info === 'object' && Object.keys(device.device_info as object).length > 0 && (
+                                  <div>
+                                    <span className="text-muted-foreground text-sm">Additional Info</span>
+                                    <div className="mt-1 p-3 rounded-lg bg-muted overflow-hidden">
+                                      <pre className="text-xs whitespace-pre-wrap break-all overflow-x-auto max-h-48">
+                                        {JSON.stringify(device.device_info, null, 2)}
+                                      </pre>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                              {device.device_info && Object.keys(device.device_info).length > 0 && (
-                                <div>
-                                  <span className="text-muted-foreground text-sm">Additional Info</span>
-                                  <pre className="mt-1 p-3 rounded-lg bg-muted text-xs overflow-auto max-h-48">
-                                    {JSON.stringify(device.device_info, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
-                            </div>
+                            </ScrollArea>
                           </DialogContent>
                         </Dialog>
 
-                        {/* Blacklist Device Button */}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onBlacklistDevice(device.device_id)}
-                            >
-                              <Ban className="w-4 h-4 text-destructive" />
+                        {/* Actions Dropdown */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="w-4 h-4" />
                             </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Add device to blacklist
-                          </TooltipContent>
-                        </Tooltip>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 bg-popover z-50">
+                            {device.is_online && (
+                              <DropdownMenuItem 
+                                onClick={() => logoutDevice(device.device_id, `${device.browser} on ${device.os}`)}
+                                disabled={isLoggingOut}
+                              >
+                                <LogOut className="w-4 h-4 mr-2" />
+                                Logout Device
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem 
+                              onClick={() => logoutUserDevices(device.user_id, device.user_name || 'Unknown')}
+                              disabled={isLoggingOut}
+                            >
+                              <User className="w-4 h-4 mr-2" />
+                              Logout User's Devices
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => onBlacklistDevice(device.device_id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Ban className="w-4 h-4 mr-2" />
+                              Blacklist Device
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
