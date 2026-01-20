@@ -948,6 +948,7 @@ export type Database = {
         Args: { _user_notification_id: string }
         Returns: undefined
       }
+      reset_user_progress: { Args: { _user_ids: string[] }; Returns: Json }
       set_device_offline: { Args: { _device_id: string }; Returns: undefined }
       upsert_user_device: {
         Args: {

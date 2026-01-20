@@ -85,6 +85,7 @@ import { PageAnalyticsTab } from '@/components/admin/PageAnalyticsTab';
 import { AuthSettingsTab } from '@/components/admin/AuthSettingsTab';
 import { UserFeatureOverridesDialog } from '@/components/admin/UserFeatureOverridesDialog';
 import { NotificationSender } from '@/components/admin/NotificationSender';
+import { ResetProgressDialog } from '@/components/admin/ResetProgressDialog';
 
 interface UserProfile {
   id: string;
@@ -665,14 +666,23 @@ export default function AdminPanel() {
         {/* Users Tab */}
         <TabsContent value="users">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                All Users
-              </CardTitle>
-              <CardDescription>
-                View and manage user accounts and their data
-              </CardDescription>
+            <CardHeader className="flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  All Users
+                </CardTitle>
+                <CardDescription className="mt-1.5">
+                  View and manage user accounts and their data
+                </CardDescription>
+              </div>
+              {currentUserRole === 'owner' && (
+                <ResetProgressDialog 
+                  users={users} 
+                  onResetComplete={fetchUsers}
+                  logAction={logAction}
+                />
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Search and Filter */}
