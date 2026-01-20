@@ -7,12 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Package, Loader2, Mail, Lock, User, ArrowLeft, KeyRound, Gamepad2 } from 'lucide-react';
+import { Loader2, Mail, Lock, User, ArrowLeft, KeyRound, Gamepad2 } from 'lucide-react';
 import { z } from 'zod';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import appLogo from '@/assets/logo.png';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
@@ -540,9 +541,7 @@ export default function Auth() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
-            <div className="p-3 rounded-xl bg-gradient-primary">
-              <Package className="h-8 w-8 text-white" />
-            </div>
+            <img src={appLogo} alt="GrowStock Logo" className="h-16 w-16 rounded-xl" />
           </div>
           <CardTitle className="text-2xl">GrowStock</CardTitle>
           <CardDescription>

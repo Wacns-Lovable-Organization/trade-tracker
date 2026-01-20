@@ -8,7 +8,6 @@ import { useViewAs } from '@/contexts/ViewAsContext';
 import { useDeviceTracking } from '@/hooks/useDeviceTracking';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 import {
-  Package,
   ShoppingCart,
   BarChart3,
   Calculator,
@@ -24,7 +23,9 @@ import {
   Receipt,
   FileText,
   User,
+  Package,
 } from 'lucide-react';
+import appLogo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -108,10 +109,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       )}>
         <div className="flex items-center justify-between h-full px-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Package className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold">GT Inventory</span>
+            <img src={appLogo} alt="Logo" className="w-8 h-8 rounded-lg" />
+            <span className="font-semibold">GrowStock</span>
           </Link>
           <div className="flex items-center gap-1">
             <NotificationBell />
@@ -189,11 +188,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       )}>
         <div className="p-6">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg">
-              <Package className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <img src={appLogo} alt="Logo" className="w-10 h-10 rounded-xl shadow-lg" />
             <div>
-              <h1 className="font-bold text-lg">GT Inventory</h1>
+              <h1 className="font-bold text-lg">GrowStock</h1>
             </div>
           </Link>
         </div>
