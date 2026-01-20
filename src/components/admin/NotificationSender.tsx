@@ -22,7 +22,7 @@ import { Bell, Mail, Send, Loader2, Users, User } from 'lucide-react';
 
 interface UserProfile {
   user_id: string;
-  display_name: string | null;
+  grow_id: string | null;
   email: string | null;
 }
 
@@ -46,8 +46,8 @@ export function NotificationSender() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('user_id, display_name, email')
-          .order('display_name');
+          .select('user_id, grow_id, email')
+          .order('grow_id');
 
         if (error) throw error;
         setUsers(data || []);
@@ -224,7 +224,7 @@ export function NotificationSender() {
                 ) : (
                   users.map((u) => (
                     <SelectItem key={u.user_id} value={u.user_id}>
-                      {u.display_name || u.email || 'Unknown User'}
+                      {u.grow_id || u.email || 'Unknown User'}
                     </SelectItem>
                   ))
                 )}

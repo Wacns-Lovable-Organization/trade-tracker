@@ -6,7 +6,7 @@ import type { Json } from '@/integrations/supabase/types';
 interface ViewAsUser {
   id: string;
   email: string;
-  displayName: string | null;
+  growId: string | null;
 }
 
 interface ViewAsContextType {
@@ -52,7 +52,7 @@ export function ViewAsProvider({ children }: { children: React.ReactNode }) {
     // Log impersonation start
     if (newUser && user) {
       logAdminActivity('impersonation_start', newUser.id, newUser.email, {
-        target_display_name: newUser.displayName || null,
+        target_grow_id: newUser.growId || null,
       });
     }
     setViewAsUserState(newUser);

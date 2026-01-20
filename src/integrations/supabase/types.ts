@@ -131,6 +131,110 @@ export type Database = {
         }
         Relationships: []
       }
+      buyer_items: {
+        Row: {
+          buyer_id: string
+          created_at: string
+          currency_unit: string
+          id: string
+          item_id: string
+          notes: string | null
+          quantity_per_unit: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string
+          currency_unit?: string
+          id?: string
+          item_id: string
+          notes?: string | null
+          quantity_per_unit?: number
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string
+          currency_unit?: string
+          id?: string
+          item_id?: string
+          notes?: string | null
+          quantity_per_unit?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_items_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      buyers: {
+        Row: {
+          created_at: string
+          discord: string | null
+          email: string | null
+          facebook: string | null
+          grow_id: string
+          id: string
+          instagram: string | null
+          notes: string | null
+          phone: string | null
+          telegram: string | null
+          tiktok: string | null
+          twitter: string | null
+          updated_at: string
+          user_id: string
+          whatsapp: string | null
+          world: string
+          youtube: string | null
+        }
+        Insert: {
+          created_at?: string
+          discord?: string | null
+          email?: string | null
+          facebook?: string | null
+          grow_id: string
+          id?: string
+          instagram?: string | null
+          notes?: string | null
+          phone?: string | null
+          telegram?: string | null
+          tiktok?: string | null
+          twitter?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp?: string | null
+          world: string
+          youtube?: string | null
+        }
+        Update: {
+          created_at?: string
+          discord?: string | null
+          email?: string | null
+          facebook?: string | null
+          grow_id?: string
+          id?: string
+          instagram?: string | null
+          notes?: string | null
+          phone?: string | null
+          telegram?: string | null
+          tiktok?: string | null
+          twitter?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp?: string | null
+          world?: string
+          youtube?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -442,7 +546,6 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
-          display_name: string | null
           email: string | null
           grow_id: string | null
           id: string
@@ -452,7 +555,6 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
-          display_name?: string | null
           email?: string | null
           grow_id?: string | null
           id?: string
@@ -462,7 +564,6 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
-          display_name?: string | null
           email?: string | null
           grow_id?: string | null
           id?: string
@@ -622,30 +723,60 @@ export type Database = {
       suppliers: {
         Row: {
           created_at: string
+          discord: string | null
+          email: string | null
+          facebook: string | null
           grow_id: string
           id: string
+          instagram: string | null
           notes: string | null
+          phone: string | null
+          telegram: string | null
+          tiktok: string | null
+          twitter: string | null
           updated_at: string
           user_id: string
+          whatsapp: string | null
           world: string
+          youtube: string | null
         }
         Insert: {
           created_at?: string
+          discord?: string | null
+          email?: string | null
+          facebook?: string | null
           grow_id: string
           id?: string
+          instagram?: string | null
           notes?: string | null
+          phone?: string | null
+          telegram?: string | null
+          tiktok?: string | null
+          twitter?: string | null
           updated_at?: string
           user_id: string
+          whatsapp?: string | null
           world: string
+          youtube?: string | null
         }
         Update: {
           created_at?: string
+          discord?: string | null
+          email?: string | null
+          facebook?: string | null
           grow_id?: string
           id?: string
+          instagram?: string | null
           notes?: string | null
+          phone?: string | null
+          telegram?: string | null
+          tiktok?: string | null
+          twitter?: string | null
           updated_at?: string
           user_id?: string
+          whatsapp?: string | null
           world?: string
+          youtube?: string | null
         }
         Relationships: []
       }

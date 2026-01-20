@@ -74,8 +74,8 @@ export default function InventoryAdd() {
       toast.error('Quantity must be a positive integer');
       return;
     }
-    if (!cost || cost <= 0) {
-      toast.error('Unit cost must be positive');
+    if (cost < 0) {
+      toast.error('Unit cost cannot be negative');
       return;
     }
 
@@ -231,7 +231,7 @@ export default function InventoryAdd() {
                   <Input
                     id="unitCost"
                     type="number"
-                    min="0.01"
+                    min="0"
                     step="0.01"
                     value={unitCost}
                     onChange={(e) => setUnitCost(e.target.value)}
