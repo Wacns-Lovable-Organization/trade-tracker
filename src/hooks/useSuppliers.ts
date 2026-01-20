@@ -8,6 +8,16 @@ export interface Supplier {
   grow_id: string;
   world: string;
   notes: string | null;
+  phone: string | null;
+  email: string | null;
+  discord: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  twitter: string | null;
+  youtube: string | null;
+  tiktok: string | null;
+  telegram: string | null;
+  whatsapp: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -83,7 +93,21 @@ export function useSuppliers() {
     fetchSuppliers();
   }, [fetchSuppliers]);
 
-  const addSupplier = useCallback(async (data: { grow_id: string; world: string; notes?: string }) => {
+  const addSupplier = useCallback(async (data: { 
+    grow_id: string; 
+    world: string; 
+    notes?: string;
+    phone?: string;
+    email?: string;
+    discord?: string;
+    instagram?: string;
+    facebook?: string;
+    twitter?: string;
+    youtube?: string;
+    tiktok?: string;
+    telegram?: string;
+    whatsapp?: string;
+  }) => {
     if (!user) return { error: new Error('Not authenticated') };
 
     try {
@@ -94,6 +118,16 @@ export function useSuppliers() {
           grow_id: data.grow_id,
           world: data.world.toUpperCase(),
           notes: data.notes || null,
+          phone: data.phone || null,
+          email: data.email || null,
+          discord: data.discord || null,
+          instagram: data.instagram || null,
+          facebook: data.facebook || null,
+          twitter: data.twitter || null,
+          youtube: data.youtube || null,
+          tiktok: data.tiktok || null,
+          telegram: data.telegram || null,
+          whatsapp: data.whatsapp || null,
         })
         .select()
         .single();

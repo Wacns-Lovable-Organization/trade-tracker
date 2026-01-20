@@ -24,6 +24,7 @@ import Sales from "./pages/Sales";
 import ProfitSimulator from "./pages/ProfitSimulator";
 import AdminPanel from "./pages/AdminPanel";
 import Suppliers from "./pages/Suppliers";
+import Buyers from "./pages/Buyers";
 import Expenses from "./pages/Expenses";
 import Reports from "./pages/Reports";
 import Profile from "./pages/Profile";
@@ -81,6 +82,11 @@ const App = () => (
                               <Route path="/suppliers" element={
                                 <FeatureGate featureKey="suppliers_management">
                                   <Suppliers />
+                                </FeatureGate>
+                              } />
+                              <Route path="/buyers" element={
+                                <FeatureGate featureKey="buyers_management">
+                                  <Buyers />
                                 </FeatureGate>
                               } />
                               <Route path="/expenses" element={

@@ -1,4 +1,18 @@
 {
+  "nav": {
+    "dashboard": "Dashboard",
+    "addInventory": "Add Inventory",
+    "inventory": "Inventory",
+    "sales": "Sales",
+    "profitSimulator": "Profit Simulator",
+    "categories": "Categories",
+    "suppliers": "Suppliers",
+    "buyers": "Buyers",
+    "expenses": "Expenses",
+    "reports": "Reports",
+    "settings": "Settings",
+    "adminPanel": "Admin Panel"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
