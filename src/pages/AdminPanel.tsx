@@ -466,16 +466,16 @@ export default function AdminPanel() {
 
       // Create and download file
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `user-data-${profile.display_name || profile.user_id}-${format(new Date(), 'yyyy-MM-dd')}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `user-data-${profile.grow_id || profile.user_id}-${format(new Date(), 'yyyy-MM-dd')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      await logAction('data_exported', profile.user_id, profile.display_name || undefined);
+      await logAction('data_exported', profile.user_id, profile.grow_id || undefined);
       toast.dismiss();
       toast.success('User data exported successfully');
     } catch (error) {
@@ -938,7 +938,7 @@ export default function AdminPanel() {
         {/* Devices Tab */}
         <TabsContent value="devices">
           <DevicesTab 
-            users={users.map(u => ({ user_id: u.user_id, grow_id: u.grow_id }))}
+            users={users.map(u => ({ user_id: u.user_id, grow_id: u.grow_id || null }))}
             onBlacklistDevice={(deviceId) => {
               setBlacklistType('device_id');
               setBlacklistValue(deviceId);
@@ -951,7 +951,7 @@ export default function AdminPanel() {
 
         {/* Activity Logs Tab */}
         <TabsContent value="activity">
-          <ActivityLogViewer users={users.map(u => ({ user_id: u.user_id, grow_id: u.grow_id, avatar_url: u.avatar_url }))} />
+          <ActivityLogViewer users={users.map(u => ({ user_id: u.user_id, grow_id: u.grow_id || null, avatar_url: u.avatar_url }))} />
         </TabsContent>
 
         {/* Blacklist Tab */}
