@@ -43,8 +43,8 @@ export function useSuppliers() {
 
     try {
       // Fetch suppliers
-      const { data: suppliersData, error: suppliersError } = await (supabase
-        .from('suppliers') as any)
+      const { data: suppliersData, error: suppliersError } = await supabase
+        .from('suppliers')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -56,8 +56,8 @@ export function useSuppliers() {
       
       let itemsData: SupplierItem[] = [];
       if (supplierIds.length > 0) {
-        const { data, error: itemsError } = await (supabase
-          .from('supplier_items') as any)
+        const { data, error: itemsError } = await supabase
+          .from('supplier_items')
           .select('*')
           .in('supplier_id', supplierIds);
 
@@ -87,8 +87,8 @@ export function useSuppliers() {
     if (!user) return { error: new Error('Not authenticated') };
 
     try {
-      const { data: newSupplier, error } = await (supabase
-        .from('suppliers') as any)
+      const { data: newSupplier, error } = await supabase
+        .from('suppliers')
         .insert({
           user_id: user.id,
           grow_id: data.grow_id,
@@ -109,8 +109,8 @@ export function useSuppliers() {
 
   const updateSupplier = useCallback(async (id: string, data: Partial<Supplier>) => {
     try {
-      const { error } = await (supabase
-        .from('suppliers') as any)
+      const { error } = await supabase
+        .from('suppliers')
         .update(data)
         .eq('id', id);
 
@@ -125,8 +125,8 @@ export function useSuppliers() {
 
   const deleteSupplier = useCallback(async (id: string) => {
     try {
-      const { error } = await (supabase
-        .from('suppliers') as any)
+      const { error } = await supabase
+        .from('suppliers')
         .delete()
         .eq('id', id);
 
@@ -149,8 +149,8 @@ export function useSuppliers() {
     notes?: string;
   }) => {
     try {
-      const { data: newItem, error } = await (supabase
-        .from('supplier_items') as any)
+      const { data: newItem, error } = await supabase
+        .from('supplier_items')
         .insert(data)
         .select()
         .single();
@@ -166,8 +166,8 @@ export function useSuppliers() {
 
   const updateSupplierItem = useCallback(async (id: string, data: Partial<SupplierItem>) => {
     try {
-      const { error } = await (supabase
-        .from('supplier_items') as any)
+      const { error } = await supabase
+        .from('supplier_items')
         .update(data)
         .eq('id', id);
 
@@ -182,8 +182,8 @@ export function useSuppliers() {
 
   const deleteSupplierItem = useCallback(async (id: string) => {
     try {
-      const { error } = await (supabase
-        .from('supplier_items') as any)
+      const { error } = await supabase
+        .from('supplier_items')
         .delete()
         .eq('id', id);
 

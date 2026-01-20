@@ -52,9 +52,10 @@ export function useSalesForecast() {
       }
 
       setForecast(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { message?: string };
       console.error('Forecast error:', err);
-      setError(err.message || 'Failed to generate forecast');
+      setError(error.message || 'Failed to generate forecast');
     } finally {
       setIsLoading(false);
     }

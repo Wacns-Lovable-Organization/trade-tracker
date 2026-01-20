@@ -25,8 +25,8 @@ export function useUserFeatureOverrides() {
     }
 
     try {
-      const { data, error } = await (supabase
-        .from('user_feature_overrides') as any)
+      const { data, error } = await supabase
+        .from('user_feature_overrides')
         .select('*')
         .eq('user_id', user.id);
 
@@ -63,8 +63,8 @@ export function useAdminFeatureOverrides() {
 
   const fetchAllOverrides = useCallback(async () => {
     try {
-      const { data, error } = await (supabase
-        .from('user_feature_overrides') as any)
+      const { data, error } = await supabase
+        .from('user_feature_overrides')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -89,8 +89,8 @@ export function useAdminFeatureOverrides() {
     if (!user) return { error: new Error('No admin user') };
 
     try {
-      const { data, error } = await (supabase
-        .from('user_feature_overrides') as any)
+      const { data, error } = await supabase
+        .from('user_feature_overrides')
         .upsert({
           user_id: userId,
           feature_key: featureKey,
@@ -123,8 +123,8 @@ export function useAdminFeatureOverrides() {
 
   const removeUserFeatureOverride = useCallback(async (userId: string, featureKey: string) => {
     try {
-      const { error } = await (supabase
-        .from('user_feature_overrides') as any)
+      const { error } = await supabase
+        .from('user_feature_overrides')
         .delete()
         .eq('user_id', userId)
         .eq('feature_key', featureKey);

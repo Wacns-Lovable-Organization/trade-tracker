@@ -28,8 +28,8 @@ export function useUserSettings() {
     }
 
     try {
-      const { data, error } = await (supabase
-        .from('user_settings') as any)
+      const { data, error } = await supabase
+        .from('user_settings')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -42,8 +42,8 @@ export function useUserSettings() {
         setSettings(data);
       } else {
         // Create default settings if none exist
-        const { data: newSettings, error: insertError } = await (supabase
-          .from('user_settings') as any)
+        const { data: newSettings, error: insertError } = await supabase
+          .from('user_settings')
           .insert({
             user_id: user.id,
             low_stock_alerts_enabled: true,
@@ -77,8 +77,8 @@ export function useUserSettings() {
     if (!user || !settings) return { error: new Error('No user or settings') };
 
     try {
-      const { data, error } = await (supabase
-        .from('user_settings') as any)
+      const { data, error } = await supabase
+        .from('user_settings')
         .update(updates)
         .eq('user_id', user.id)
         .select()

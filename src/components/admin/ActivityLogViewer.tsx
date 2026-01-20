@@ -159,11 +159,12 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
         setStartDate(startOfDay(now));
         setEndDate(endOfDay(now));
         break;
-      case 'yesterday':
+      case 'yesterday': {
         const yesterday = subDays(now, 1);
         setStartDate(startOfDay(yesterday));
         setEndDate(endOfDay(yesterday));
         break;
+      }
       case 'last7days':
         setStartDate(startOfDay(subDays(now, 7)));
         setEndDate(endOfDay(now));

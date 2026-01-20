@@ -45,8 +45,8 @@ export function useExpenses() {
     }
 
     try {
-      const { data, error } = await (supabase
-        .from('expenses') as any)
+      const { data, error } = await supabase
+        .from('expenses')
         .select('*')
         .eq('user_id', user.id)
         .order('expense_date', { ascending: false });
@@ -77,8 +77,8 @@ export function useExpenses() {
     if (!user) return { error: new Error('Not authenticated') };
 
     try {
-      const { data: newExpense, error } = await (supabase
-        .from('expenses') as any)
+      const { data: newExpense, error } = await supabase
+        .from('expenses')
         .insert({
           user_id: user.id,
           ...data,
@@ -97,8 +97,8 @@ export function useExpenses() {
 
   const updateExpense = useCallback(async (id: string, data: Partial<Expense>) => {
     try {
-      const { error } = await (supabase
-        .from('expenses') as any)
+      const { error } = await supabase
+        .from('expenses')
         .update(data)
         .eq('id', id);
 
@@ -113,8 +113,8 @@ export function useExpenses() {
 
   const deleteExpense = useCallback(async (id: string) => {
     try {
-      const { error } = await (supabase
-        .from('expenses') as any)
+      const { error } = await supabase
+        .from('expenses')
         .delete()
         .eq('id', id);
 

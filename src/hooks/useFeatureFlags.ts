@@ -17,8 +17,8 @@ export function useFeatureFlags() {
 
   const fetchFeatureFlags = useCallback(async () => {
     try {
-      const { data, error } = await (supabase
-        .from('feature_flags') as any)
+      const { data, error } = await supabase
+        .from('feature_flags')
         .select('*')
         .order('feature_name');
 
@@ -46,8 +46,8 @@ export function useFeatureFlags() {
 
   const updateFeatureFlag = useCallback(async (featureKey: string, isEnabled: boolean) => {
     try {
-      const { error } = await (supabase
-        .from('feature_flags') as any)
+      const { error } = await supabase
+        .from('feature_flags')
         .update({ is_enabled: isEnabled })
         .eq('feature_key', featureKey);
 
@@ -68,8 +68,8 @@ export function useFeatureFlags() {
 
   const addFeatureFlag = useCallback(async (featureKey: string, featureName: string, description?: string) => {
     try {
-      const { data, error } = await (supabase
-        .from('feature_flags') as any)
+      const { data, error } = await supabase
+        .from('feature_flags')
         .insert({
           feature_key: featureKey,
           feature_name: featureName,
@@ -91,8 +91,8 @@ export function useFeatureFlags() {
 
   const deleteFeatureFlag = useCallback(async (featureKey: string) => {
     try {
-      const { error } = await (supabase
-        .from('feature_flags') as any)
+      const { error } = await supabase
+        .from('feature_flags')
         .delete()
         .eq('feature_key', featureKey);
 
