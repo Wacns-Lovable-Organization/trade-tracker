@@ -168,11 +168,12 @@ const handler = async (req: Request): Promise<Response> => {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
-    console.error("Error sending admin notification:", error);
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    console.error("Error sending admin notification:", err);
     // Return success anyway - we don't want to block admin actions if notification fails
     return new Response(
-      JSON.stringify({ success: true, error: error.message }),
+      JSON.stringify({ success: true, error: err.message }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },

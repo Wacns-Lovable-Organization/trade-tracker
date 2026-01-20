@@ -199,7 +199,8 @@ export function generateProfitReport(data: ProfitReportData): void {
   
   // Expenses
   if (data.expenses.length > 0) {
-    const finalY = (doc as any).lastAutoTable?.finalY || yOffset + 60;
+    const docWithAutoTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+    const finalY = docWithAutoTable.lastAutoTable?.finalY || yOffset + 60;
     
     doc.setFontSize(14);
     doc.text('Expenses Breakdown', 14, finalY + 14);

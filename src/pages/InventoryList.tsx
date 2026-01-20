@@ -112,7 +112,7 @@ export default function InventoryList() {
               />
             </div>
             <div className="flex gap-2">
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'OPEN' | 'CLOSED')}>
                 <SelectTrigger className="w-32">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue />
