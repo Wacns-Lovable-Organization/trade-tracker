@@ -112,10 +112,11 @@ Respond in this exact JSON format:
     return new Response(JSON.stringify(forecast), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: any) {
-    console.error("Forecast error:", error);
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    console.error("Forecast error:", err);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: err.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

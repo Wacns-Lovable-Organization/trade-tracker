@@ -33,18 +33,12 @@ export default function Profile() {
   const [growId, setGrowId] = useState('');
   const [email, setEmail] = useState('');
 
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user]);
-
   const fetchProfile = async () => {
     if (!user) return;
     
     try {
-      const { data, error } = await (supabase
-        .from('profiles') as any)
+      const { data, error } = await supabase
+        .from('profiles')
         .select('*')
         .eq('user_id', user.id)
         .single();
@@ -61,6 +55,13 @@ export default function Profile() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -100,8 +101,8 @@ export default function Profile() {
         .getPublicUrl(fileName);
 
       // Update profile
-      const { error: updateError } = await (supabase
-        .from('profiles') as any)
+      const { error: updateError } = await supabase
+        .from('profiles')
         .update({ avatar_url: `${publicUrl}?t=${Date.now()}` })
         .eq('user_id', user.id);
 
@@ -109,9 +110,10 @@ export default function Profile() {
 
       await fetchProfile();
       toast.success('Avatar updated!');
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      toast.error(error.message || 'Failed to upload avatar');
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      console.error('Upload error:', err);
+      toast.error(err.message || 'Failed to upload avatar');
     } finally {
       setIsUploading(false);
     }
@@ -131,8 +133,8 @@ export default function Profile() {
     try {
       // Check GrowID uniqueness if changed
       if (growId && growId !== profile?.grow_id) {
-        const { data: existing } = await (supabase
-          .from('profiles') as any)
+        const { data: existing } = await supabase
+          .from('profiles')
           .select('user_id')
           .eq('grow_id', growId.toUpperCase())
           .neq('user_id', user.id)
@@ -146,8 +148,8 @@ export default function Profile() {
       }
 
       // Update profile
-      const { error } = await (supabase
-        .from('profiles') as any)
+      const { error } = await supabase
+        .from('profiles')
         .update({
           display_name: displayName.trim() || null,
           grow_id: growId.trim().toUpperCase() || null,
@@ -175,9 +177,10 @@ export default function Profile() {
 
       await fetchProfile();
       toast.success('Profile updated!');
-    } catch (error: any) {
-      console.error('Save error:', error);
-      toast.error(error.message || 'Failed to save profile');
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      console.error('Save error:', err);
+      toast.error(err.message || 'Failed to save profile');
     } finally {
       setIsSaving(false);
     }

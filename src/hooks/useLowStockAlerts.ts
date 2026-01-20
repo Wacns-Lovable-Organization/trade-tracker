@@ -42,7 +42,8 @@ export function useLowStockAlerts() {
       const category = data.categories.find(c => c.id === item.defaultCategoryId);
       
       // Use item-specific threshold if set, otherwise global
-      const threshold = (item as any).low_stock_threshold || globalThreshold;
+      const itemWithThreshold = item as { low_stock_threshold?: number };
+      const threshold = itemWithThreshold.low_stock_threshold || globalThreshold;
       
       if (remainingQty > 0 && remainingQty <= threshold) {
         alerts.push({

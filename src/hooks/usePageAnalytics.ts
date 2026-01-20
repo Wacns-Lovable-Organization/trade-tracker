@@ -76,7 +76,7 @@ export function usePageAnalytics() {
       const sessionId = getSessionId();
       const pageTitle = PAGE_TITLES[pagePath] || pagePath;
 
-      await (supabase.from('page_analytics') as any).insert({
+      await supabase.from('page_analytics').insert({
         user_id: user?.id || null,
         session_id: sessionId,
         page_path: pagePath,

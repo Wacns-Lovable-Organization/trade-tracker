@@ -345,9 +345,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCategories((categoriesRes.data || []) as DbCategory[]);
       setItems((itemsRes.data || []) as DbItem[]);
       setInventoryEntries((entriesRes.data || []) as DbInventoryEntry[]);
-      setSales((salesRes.data || []).map((sale: any) => ({
+      
+      setSales((salesRes.data || []).map((sale) => ({
         ...sale,
-        cost_breakdown: sale.cost_breakdown || [],
+        cost_breakdown: (sale.cost_breakdown as unknown as CostBreakdownItem[] | null) || [],
       })) as DbSale[]);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -522,7 +523,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!user) throw new Error('Not authenticated');
     
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, string | number | null> = {};
     if (updates.quantityBought !== undefined) {
       updateData.quantity_bought = updates.quantityBought;
       updateData.remaining_qty = updates.quantityBought; // Reset remaining to match bought
@@ -705,7 +706,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         quantity_sold: quantitySold,
         sale_price: amountGained,
         currency_unit: currencyUnit,
-        cost_breakdown: costBreakdown as any,
+        cost_breakdown: costBreakdown as unknown as Json,
         total_cost: costOfGoodsSold,
         profit,
         sold_at: soldAt || new Date().toISOString(),
@@ -727,7 +728,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!user) throw new Error('Not authenticated');
     
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, string | number | null> = {};
     if (updates.quantitySold !== undefined) updateData.quantity_sold = updates.quantitySold;
     if (updates.amountGained !== undefined) updateData.sale_price = updates.amountGained;
     if (updates.notes !== undefined) updateData.notes = updates.notes || null;
