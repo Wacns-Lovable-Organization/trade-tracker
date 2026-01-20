@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppSettings } from '@/hooks/useAppSettings';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
@@ -320,7 +321,10 @@ export default function Auth() {
   // Password Reset Form (after clicking magic link)
   if (view === 'reset-password-form') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
         <Card className="w-full max-w-md">
           <CardHeader className="text-center space-y-2">
             <div className="flex justify-center mb-2">
@@ -389,7 +393,10 @@ export default function Auth() {
   // OTP Verification View for Signup (only when using Resend)
   if (view === 'signup-verify') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
         <Card className="w-full max-w-md relative">
           <CardHeader className="text-center space-y-2">
             <Button
@@ -464,7 +471,10 @@ export default function Auth() {
   // Forgot Password View
   if (view === 'forgot-password') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
         <Card className="w-full max-w-md relative">
           <CardHeader className="text-center space-y-2">
             <Button
@@ -523,7 +533,10 @@ export default function Auth() {
 
   // Main Login/Signup View
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
