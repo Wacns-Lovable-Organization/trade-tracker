@@ -60,7 +60,7 @@ interface ActivityLog {
 
 interface UserProfile {
   user_id: string;
-  display_name: string | null;
+  grow_id: string | null;
   avatar_url: string | null;
 }
 
@@ -272,14 +272,15 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
 
     const rows = filteredLogs.map(log => {
       const adminUser = users.find(u => u.user_id === log.admin_user_id);
-      const config = getActionConfig(log.action_type);
+      const logConfig = getActionConfig(log.action_type);
       
       return [
         format(new Date(log.created_at), 'yyyy-MM-dd'),
         format(new Date(log.created_at), 'HH:mm:ss'),
-        adminUser?.display_name || 'Unknown',
+        adminUser?.grow_id || 'Unknown',
         log.admin_user_id,
-        config.label,
+        logConfig.label,
+        
         log.target_email || '',
         log.target_email || '',
         log.target_user_id || '',
@@ -380,10 +381,10 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
                         <Avatar className="h-5 w-5">
                           <AvatarImage src={admin.avatar_url || undefined} />
                           <AvatarFallback className="text-xs">
-                            {(admin.display_name || 'A')[0].toUpperCase()}
+                            {(admin.grow_id || 'A')[0].toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <span>{admin.display_name || 'Unknown'}</span>
+                        <span>{admin.grow_id || 'Unknown'}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -410,7 +411,7 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-xs">
                 <User className="w-3 h-3 mr-1" />
-                Admin: {users.find(u => u.user_id === adminFilter)?.display_name || 'Unknown'}
+                Admin: {users.find(u => u.user_id === adminFilter)?.grow_id || 'Unknown'}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -589,13 +590,13 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={adminUser?.avatar_url || undefined} />
                       <AvatarFallback>
-                        {(adminUser?.display_name || 'A')[0].toUpperCase()}
+                        {(adminUser?.grow_id || 'A')[0].toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium">{adminUser?.display_name || 'Unknown Admin'}</span>
+                      <span className="font-medium">{adminUser?.grow_id || 'Unknown Admin'}</span>
                       <Badge variant={config.variant} className="gap-1 text-xs">
                         <IconComponent className="w-3 h-3" />
                         {config.label}
@@ -604,7 +605,7 @@ export function ActivityLogViewer({ users }: ActivityLogViewerProps) {
                     {(targetUser || log.target_email) && (
                       <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                         <span>→</span>
-                        <span className="font-medium">{targetUser?.display_name || log.target_email || 'Unknown'}</span>
+                        <span className="font-medium">{targetUser?.grow_id || log.target_email || 'Unknown'}</span>
                       </p>
                     )}
                     {formatDetails(log.details as Record<string, unknown>)}

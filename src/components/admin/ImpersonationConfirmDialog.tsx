@@ -29,7 +29,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
 
 interface UserProfile {
   user_id: string;
-  display_name: string | null;
+  grow_id: string | null;
   avatar_url: string | null;
   email?: string;
   role?: AppRole | null;
@@ -71,12 +71,12 @@ export function ImpersonationConfirmDialog({
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={user.avatar_url || undefined} />
                   <AvatarFallback>
-                    {(user.display_name || 'U')[0].toUpperCase()}
+                    {(user.grow_id || 'U')[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <div className="font-medium text-foreground">
-                    {user.display_name || 'Unnamed User'}
+                    {user.grow_id || 'Unknown User'}
                   </div>
                   <div className="text-xs text-muted-foreground">{user.email}</div>
                   <div className="flex items-center gap-2 mt-1">

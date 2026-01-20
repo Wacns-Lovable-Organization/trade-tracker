@@ -32,7 +32,7 @@ import { toast } from 'sonner';
 interface UserProfile {
   id: string;
   user_id: string;
-  display_name: string | null;
+  grow_id: string | null;
   avatar_url: string | null;
   inventoryCount?: number;
   salesCount?: number;
@@ -66,7 +66,7 @@ export function ResetProgressDialog({ users, onResetComplete, logAction }: Reset
   const selectableUsers = users.filter(u => 
     u.user_id !== user?.id &&
     (searchQuery === '' || 
-      u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.grow_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.user_id.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -228,12 +228,12 @@ export function ResetProgressDialog({ users, onResetComplete, logAction }: Reset
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={profile.avatar_url || undefined} />
                         <AvatarFallback>
-                          {(profile.display_name || 'U')[0].toUpperCase()}
+                          {(profile.grow_id || 'U')[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">
-                          {profile.display_name || 'Unnamed User'}
+                          {profile.grow_id || 'Unknown User'}
                         </div>
                         <div className="text-xs text-muted-foreground flex gap-3">
                           <span>{profile.inventoryCount || 0} inventory</span>

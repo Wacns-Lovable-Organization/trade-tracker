@@ -60,7 +60,7 @@ interface UserDevice {
 }
 
 interface DevicesTabProps {
-  users: { user_id: string; display_name: string | null }[];
+  users: { user_id: string; grow_id: string | null }[];
   onBlacklistDevice: (deviceId: string) => void;
 }
 
@@ -82,10 +82,10 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
 
       // Map user names to devices
       const devicesWithNames = (data || []).map(device => {
-        const user = users.find(u => u.user_id === device.user_id);
+        const deviceUser = users.find(u => u.user_id === device.user_id);
         return {
           ...device,
-          user_name: user?.display_name || 'Unknown User',
+          user_name: deviceUser?.grow_id || 'Unknown User',
         };
       });
 
