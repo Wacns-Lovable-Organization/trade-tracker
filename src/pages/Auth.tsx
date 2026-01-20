@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Loader2, Mail, Lock, User, ArrowLeft, KeyRound, Gamepad2 } from 'lucide-react';
+import { Loader2, Mail, Lock, ArrowLeft, KeyRound, Gamepad2 } from 'lucide-react';
 import { z } from 'zod';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,7 +40,6 @@ export default function Auth() {
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [growId, setGrowId] = useState('');
   
   // OTP verification state (for Resend method)
@@ -172,7 +171,7 @@ export default function Auth() {
     }
     
     // Direct signup with auto-confirm (Supabase built-in)
-    const { error } = await signUp(signupEmail, signupPassword, displayName, growId.trim().toUpperCase());
+    const { error } = await signUp(signupEmail, signupPassword, growId.trim().toUpperCase());
     
     setIsSubmitting(false);
     
@@ -208,7 +207,7 @@ export default function Auth() {
     }
     
     setIsSubmitting(true);
-    const { error } = await signUp(signupEmail, signupPassword, displayName, growId.trim().toUpperCase() || undefined);
+    const { error } = await signUp(signupEmail, signupPassword, growId.trim().toUpperCase() || undefined);
     setIsSubmitting(false);
     
     if (error) {
@@ -626,21 +625,6 @@ export default function Auth() {
                       onChange={(e) => setSignupEmail(e.target.value)}
                       className="pl-10"
                       required
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="display-name">Display Name (optional)</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="display-name"
-                      type="text"
-                      placeholder="Your name"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="pl-10"
                     />
                   </div>
                 </div>

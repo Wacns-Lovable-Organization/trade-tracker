@@ -8,12 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { Loader2, Camera, User, Mail, Gamepad2, Save } from 'lucide-react';
+import { Loader2, Camera, Mail, Gamepad2, Save } from 'lucide-react';
 
 interface ProfileData {
   id: string;
   user_id: string;
-  display_name: string | null;
   grow_id: string | null;
   avatar_url: string | null;
   email: string | null;
@@ -29,7 +28,6 @@ export default function Profile() {
   const [isUploading, setIsUploading] = useState(false);
   
   // Form state
-  const [displayName, setDisplayName] = useState('');
   const [growId, setGrowId] = useState('');
   const [email, setEmail] = useState('');
 
@@ -46,7 +44,6 @@ export default function Profile() {
       if (error) throw error;
       
       setProfile(data);
-      setDisplayName(data.display_name || '');
       setGrowId(data.grow_id || '');
       setEmail(data.email || user.email || '');
     } catch (error) {
@@ -151,7 +148,6 @@ export default function Profile() {
       const { error } = await supabase
         .from('profiles')
         .update({
-          display_name: displayName.trim() || null,
           grow_id: growId.trim().toUpperCase() || null,
         })
         .eq('user_id', user.id);
@@ -186,8 +182,8 @@ export default function Profile() {
     }
   };
 
-  const userInitials = displayName
-    ? displayName.slice(0, 2).toUpperCase()
+  const userInitials = growId
+    ? growId.slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() || 'U';
 
   if (isLoading) {
@@ -240,11 +236,8 @@ export default function Profile() {
               </Button>
             </div>
             <div>
-              <p className="font-medium">{displayName || 'No name set'}</p>
+              <p className="font-medium">{growId || 'No GrowID set'}</p>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
-              {growId && (
-                <p className="text-sm text-primary font-mono">{growId}</p>
-              )}
             </div>
           </div>
           <input
@@ -265,20 +258,6 @@ export default function Profile() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="displayName">Display Name</Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="displayName"
-                placeholder="Your display name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="growId">GrowID</Label>
             <div className="relative">

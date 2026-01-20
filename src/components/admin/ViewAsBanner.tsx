@@ -30,7 +30,7 @@ export function ViewAsBanner() {
           <div className="flex items-center gap-1 sm:gap-2 min-w-0">
             <span className="text-[10px] sm:text-sm opacity-90 hidden sm:inline">Viewing as:</span>
             <Badge variant="secondary" className="bg-white/25 text-white border-white/30 font-semibold text-[10px] sm:text-xs truncate max-w-[100px] sm:max-w-[150px]">
-              {viewAsUser.displayName || viewAsUser.email}
+              {viewAsUser.growId || viewAsUser.email}
             </Badge>
           </div>
         </div>

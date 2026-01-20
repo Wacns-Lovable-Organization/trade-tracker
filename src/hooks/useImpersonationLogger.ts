@@ -36,7 +36,7 @@ export function useImpersonationLogger() {
             action: `${entityType}_${actionType}`,
             entity_type: entityType,
             entity_id: entityId || null,
-            target_display_name: viewAsUser.displayName,
+            target_grow_id: viewAsUser.growId,
             ...details,
           } as Json,
           user_agent: navigator.userAgent,

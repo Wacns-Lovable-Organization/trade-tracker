@@ -90,7 +90,7 @@ import { ResetProgressDialog } from '@/components/admin/ResetProgressDialog';
 interface UserProfile {
   id: string;
   user_id: string;
-  display_name: string | null;
+  grow_id: string | null;
   avatar_url: string | null;
   email?: string;
   role?: AppRole | null;
@@ -293,7 +293,7 @@ export default function AdminPanel() {
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
       const matchesSearch = searchQuery === '' || 
-        user.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.grow_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.user_id.toLowerCase().includes(searchQuery.toLowerCase());
       
@@ -373,7 +373,7 @@ export default function AdminPanel() {
 
       if (error) throw error;
 
-      await logAction('role_assigned', selectedUser.user_id, selectedUser.display_name || undefined, { 
+      await logAction('role_assigned', selectedUser.user_id, selectedUser.grow_id || undefined, { 
         new_role: newRole,
         previous_role: selectedUser.role || 'none'
       });
@@ -424,13 +424,13 @@ export default function AdminPanel() {
   const confirmImpersonation = () => {
     if (!impersonationTarget) return;
     
-    logAction('view_as', impersonationTarget.user_id, impersonationTarget.display_name || undefined);
+    logAction('view_as', impersonationTarget.user_id, impersonationTarget.grow_id || undefined);
     setViewAsUser({
       id: impersonationTarget.user_id,
-      email: impersonationTarget.email || impersonationTarget.display_name || 'User',
-      displayName: impersonationTarget.display_name,
+      email: impersonationTarget.email || impersonationTarget.grow_id || 'User',
+      growId: impersonationTarget.grow_id,
     });
-    toast.success(`Now impersonating ${impersonationTarget.display_name || impersonationTarget.email || 'User'} - you can browse and edit their data`);
+    toast.success(`Now impersonating ${impersonationTarget.grow_id || impersonationTarget.email || 'User'} - you can browse and edit their data`);
     setShowImpersonationConfirm(false);
     setImpersonationTarget(null);
     navigate('/');
@@ -452,7 +452,7 @@ export default function AdminPanel() {
       const exportData = {
         user: {
           id: profile.user_id,
-          display_name: profile.display_name,
+          grow_id: profile.grow_id,
           email: profile.email,
           role: profile.role,
         },
@@ -466,7 +466,7 @@ export default function AdminPanel() {
 
       // Create and download file
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
       const a = document.createElement('a');
       a.href = url;
       a.download = `user-data-${profile.display_name || profile.user_id}-${format(new Date(), 'yyyy-MM-dd')}.json`;
@@ -748,12 +748,12 @@ export default function AdminPanel() {
                               <Avatar className="h-8 w-8">
                                 <AvatarImage src={profile.avatar_url || undefined} />
                                 <AvatarFallback>
-                                  {(profile.display_name || 'U')[0].toUpperCase()}
+                                  {(profile.grow_id || 'U')[0].toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
                                 <div className="font-medium">
-                                  {profile.display_name || 'Unnamed User'}
+                                  {profile.grow_id || 'Unnamed User'}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
                                   {profile.user_id === user?.id && '(You)'}
@@ -849,7 +849,7 @@ export default function AdminPanel() {
                                     <DialogHeader>
                                       <DialogTitle>Manage Role</DialogTitle>
                                       <DialogDescription>
-                                        Assign or change role for {profile.display_name || 'this user'}
+                                        Assign or change role for {profile.grow_id || 'this user'}
                                       </DialogDescription>
                                     </DialogHeader>
                                     <div className="space-y-4 py-4">
@@ -902,7 +902,7 @@ export default function AdminPanel() {
                                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                                               <AlertDialogAction
                                                 onClick={() => {
-                                                  removeRole(profile.user_id, profile.display_name || undefined);
+                                                  removeRole(profile.user_id, profile.grow_id || undefined);
                                                   setSelectedUser(null);
                                                 }}
                                               >
@@ -938,7 +938,7 @@ export default function AdminPanel() {
         {/* Devices Tab */}
         <TabsContent value="devices">
           <DevicesTab 
-            users={users.map(u => ({ user_id: u.user_id, display_name: u.display_name }))}
+            users={users.map(u => ({ user_id: u.user_id, grow_id: u.grow_id }))}
             onBlacklistDevice={(deviceId) => {
               setBlacklistType('device_id');
               setBlacklistValue(deviceId);
@@ -951,7 +951,7 @@ export default function AdminPanel() {
 
         {/* Activity Logs Tab */}
         <TabsContent value="activity">
-          <ActivityLogViewer users={users.map(u => ({ user_id: u.user_id, display_name: u.display_name, avatar_url: u.avatar_url }))} />
+          <ActivityLogViewer users={users.map(u => ({ user_id: u.user_id, grow_id: u.grow_id, avatar_url: u.avatar_url }))} />
         </TabsContent>
 
         {/* Blacklist Tab */}
