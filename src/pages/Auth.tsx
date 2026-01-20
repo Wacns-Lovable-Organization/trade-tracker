@@ -541,7 +541,7 @@ export default function Auth() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
-            <img src={appLogo} alt="GrowStock Logo" className="h-16 w-16 rounded-xl" />
+            <img src={appLogo} alt="GrowStock Logo" className="h-32 w-32 rounded-xl" />
           </div>
           <CardTitle className="text-2xl">GrowStock</CardTitle>
           <CardDescription>
