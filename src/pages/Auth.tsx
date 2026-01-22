@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Loader2, Mail, Lock, ArrowLeft, KeyRound, Gamepad2, CheckCircle } from 'lucide-react';
+import { Loader2, Mail, Lock, ArrowLeft, KeyRound, Gamepad2, CheckCircle, RefreshCw } from 'lucide-react';
 import { z } from 'zod';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { supabase } from '@/integrations/supabase/client';
@@ -418,6 +418,31 @@ export default function Auth() {
 
   // Check Your Email View (after signup when email verification is required)
   if (view === 'check-email') {
+    const handleResendVerification = async () => {
+      setIsSubmitting(true);
+      try {
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email: signupEmail,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth`,
+          },
+        });
+        
+        if (error) throw error;
+        toast.success('Verification email sent! Check your inbox.');
+      } catch (error: unknown) {
+        const err = error as Error;
+        if (err.message.includes('rate limit')) {
+          toast.error('Please wait a moment before requesting another email.');
+        } else {
+          toast.error(err.message || 'Failed to resend verification email');
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
         <div className="absolute top-4 right-4">
@@ -441,6 +466,25 @@ export default function Auth() {
               <p>Please check your inbox and click the verification link to activate your account.</p>
               <p>If you don't see the email, check your spam folder.</p>
             </div>
+            
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={handleResendVerification}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Resend Verification Email
+                </>
+              )}
+            </Button>
             
             <Button
               variant="outline"
