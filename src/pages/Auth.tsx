@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Loader2, Mail, Lock, ArrowLeft, KeyRound, Gamepad2 } from 'lucide-react';
+import { Loader2, Mail, Lock, ArrowLeft, KeyRound, Gamepad2, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,7 +18,7 @@ import appLogo from '@/assets/logo.png';
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
-type AuthView = 'main' | 'signup-verify' | 'forgot-password' | 'reset-password-form';
+type AuthView = 'main' | 'signup-verify' | 'forgot-password' | 'reset-password-form' | 'check-email';
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -57,13 +57,26 @@ export default function Auth() {
   // Determine auth method - only access when settings are loaded
   const useResendOTP = !settingsLoading && settings.auth_method?.method === 'resend';
 
-  // Check for password reset token in URL
+  // Check for verification or password reset tokens in URL
   useEffect(() => {
     const type = searchParams.get('type');
     const accessToken = searchParams.get('access_token');
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const hashType = hashParams.get('type');
+    const hashAccessToken = hashParams.get('access_token');
     
+    // Handle password recovery
     if (type === 'recovery' && accessToken) {
       setView('reset-password-form');
+      return;
+    }
+    
+    // Handle email verification callback (Supabase returns in hash or query)
+    if ((type === 'signup' || hashType === 'signup') || 
+        (type === 'email_confirmation' || hashType === 'email_confirmation')) {
+      // Email was verified successfully, user will be logged in by auth state listener
+      // Show success message and redirect will happen automatically
+      toast.success('Email verified successfully! Welcome!');
     }
   }, [searchParams]);
 
@@ -170,8 +183,17 @@ export default function Auth() {
       return;
     }
     
-    // Direct signup with auto-confirm (Supabase built-in)
-    const { error } = await signUp(signupEmail, signupPassword, growId.trim().toUpperCase());
+    // Direct signup (Supabase built-in) - will require email verification
+    const { error, data } = await supabase.auth.signUp({
+      email: signupEmail,
+      password: signupPassword,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth`,
+        data: {
+          grow_id: growId.trim().toUpperCase(),
+        },
+      },
+    });
     
     setIsSubmitting(false);
     
@@ -183,7 +205,11 @@ export default function Auth() {
       } else {
         toast.error(error.message);
       }
-    } else {
+    } else if (data.user && !data.session) {
+      // User created but needs to verify email
+      setView('check-email');
+    } else if (data.session) {
+      // User created and auto-confirmed (if auto_confirm is enabled)
       toast.success('Account created successfully!');
       navigate('/', { replace: true });
     }
@@ -383,6 +409,52 @@ export default function Auth() {
               ) : (
                 'Update Password'
               )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Check Your Email View (after signup when email verification is required)
+  if (view === 'check-email') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-2">
+            <div className="flex justify-center mb-2">
+              <div className="p-4 rounded-full bg-green-100 dark:bg-green-900/30">
+                <CheckCircle className="h-12 w-12 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl">Check Your Email</CardTitle>
+            <CardDescription className="text-base">
+              We've sent a verification link to:
+            </CardDescription>
+            <p className="font-semibold text-foreground">{signupEmail}</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-muted rounded-lg p-4 text-sm text-muted-foreground space-y-2">
+              <p>Please check your inbox and click the verification link to activate your account.</p>
+              <p>If you don't see the email, check your spam folder.</p>
+            </div>
+            
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setView('main');
+                setSignupEmail('');
+                setSignupPassword('');
+                setSignupConfirmPassword('');
+                setGrowId('');
+              }}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Login
             </Button>
           </CardContent>
         </Card>

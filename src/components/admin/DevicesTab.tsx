@@ -93,6 +93,16 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
+  // Confirmation dialog state
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [logoutConfirmType, setLogoutConfirmType] = useState<'device' | 'user' | null>(null);
+  const [logoutConfirmData, setLogoutConfirmData] = useState<{
+    deviceId?: string;
+    deviceName?: string;
+    userId?: string;
+    userName?: string;
+  } | null>(null);
 
   const fetchDevices = async () => {
     setIsLoading(true);
@@ -156,45 +166,48 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
     }
   };
 
-  // Logout a specific device (set is_online to false)
-  const logoutDevice = async (deviceId: string, deviceName: string) => {
-    setIsLoggingOut(true);
-    try {
-      const { error } = await supabase
-        .from('user_devices')
-        .update({ is_online: false })
-        .eq('device_id', deviceId);
-
-      if (error) throw error;
-      
-      toast.success(`Logged out device: ${deviceName}`);
-      await fetchDevices();
-    } catch (error) {
-      console.error('Failed to logout device:', error);
-      toast.error('Failed to logout device');
-    } finally {
-      setIsLoggingOut(false);
-    }
+  // Show confirmation dialog for logout actions
+  const confirmLogoutDevice = (deviceId: string, deviceName: string) => {
+    setLogoutConfirmData({ deviceId, deviceName });
+    setLogoutConfirmType('device');
+    setLogoutConfirmOpen(true);
   };
-
-  // Logout all devices for a specific user
-  const logoutUserDevices = async (userId: string, userName: string) => {
+  
+  const confirmLogoutUserDevices = (userId: string, userName: string) => {
+    setLogoutConfirmData({ userId, userName });
+    setLogoutConfirmType('user');
+    setLogoutConfirmOpen(true);
+  };
+  
+  const handleConfirmLogout = async () => {
+    if (!logoutConfirmData || !logoutConfirmType) return;
+    
     setIsLoggingOut(true);
     try {
-      const { error } = await supabase
-        .from('user_devices')
-        .update({ is_online: false })
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      
-      toast.success(`Logged out all devices for: ${userName}`);
+      if (logoutConfirmType === 'device' && logoutConfirmData.deviceId) {
+        const { error } = await supabase
+          .from('user_devices')
+          .update({ is_online: false })
+          .eq('device_id', logoutConfirmData.deviceId);
+        if (error) throw error;
+        toast.success(`Logged out device: ${logoutConfirmData.deviceName}`);
+      } else if (logoutConfirmType === 'user' && logoutConfirmData.userId) {
+        const { error } = await supabase
+          .from('user_devices')
+          .update({ is_online: false })
+          .eq('user_id', logoutConfirmData.userId);
+        if (error) throw error;
+        toast.success(`Logged out all devices for: ${logoutConfirmData.userName}`);
+      }
       await fetchDevices();
     } catch (error) {
-      console.error('Failed to logout user devices:', error);
-      toast.error('Failed to logout user devices');
+      console.error('Failed to logout:', error);
+      toast.error('Failed to logout');
     } finally {
       setIsLoggingOut(false);
+      setLogoutConfirmOpen(false);
+      setLogoutConfirmData(null);
+      setLogoutConfirmType(null);
     }
   };
 
@@ -457,7 +470,7 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
                           <DropdownMenuContent align="end" className="w-48 bg-popover z-50">
                             {device.is_online && (
                               <DropdownMenuItem 
-                                onClick={() => logoutDevice(device.device_id, `${device.browser} on ${device.os}`)}
+                                onClick={() => confirmLogoutDevice(device.device_id, `${device.browser} on ${device.os}`)}
                                 disabled={isLoggingOut}
                               >
                                 <LogOut className="w-4 h-4 mr-2" />
@@ -465,7 +478,7 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem 
-                              onClick={() => logoutUserDevices(device.user_id, device.user_name || 'Unknown')}
+                              onClick={() => confirmLogoutUserDevices(device.user_id, device.user_name || 'Unknown')}
                               disabled={isLoggingOut}
                             >
                               <User className="w-4 h-4 mr-2" />
@@ -489,6 +502,34 @@ export function DevicesTab({ users, onBlacklistDevice }: DevicesTabProps) {
             </Table>
           </div>
         )}
+        
+        {/* Logout Confirmation Dialog */}
+        <AlertDialog open={logoutConfirmOpen} onOpenChange={setLogoutConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {logoutConfirmType === 'device' 
+                  ? 'Logout This Device?' 
+                  : "Logout All User's Devices?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {logoutConfirmType === 'device' 
+                  ? `This will mark "${logoutConfirmData?.deviceName}" as offline. The user will need to refresh or re-authenticate.`
+                  : `This will log out all devices for "${logoutConfirmData?.userName}". They will need to re-authenticate on each device.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isLoggingOut}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmLogout}
+                disabled={isLoggingOut}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isLoggingOut ? 'Logging out...' : 'Confirm Logout'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
