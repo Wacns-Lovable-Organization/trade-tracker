@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
+import { ClickableCurrencyDisplay } from '@/components/ui/ClickableCurrencyDisplay';
 import { ChevronRight, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CurrencyUnit } from '@/types/inventory';
@@ -56,7 +56,7 @@ export function GroupedItemCard({ item, onClick, selected, showArrow = false, cl
               {item.remainingQty} <span className="text-muted-foreground text-sm font-normal">of {item.totalPurchasedQty}</span>
             </div>
             <div className="text-xs text-muted-foreground">
-              <CurrencyDisplay 
+              <ClickableCurrencyDisplay 
                 amount={item.lifetimeTotalCost} 
                 currency={item.currency} 
                 size="sm"

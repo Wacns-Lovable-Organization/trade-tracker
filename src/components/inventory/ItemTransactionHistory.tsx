@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CurrencyDisplay, ProfitDisplay } from '@/components/ui/CurrencyDisplay';
+import { ClickableCurrencyDisplay, ClickableProfitDisplay } from '@/components/ui/ClickableCurrencyDisplay';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -228,7 +228,7 @@ export function ItemTransactionHistory({
               <div className="grid grid-cols-4 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Revenue</p>
-                  <CurrencyDisplay
+                  <ClickableCurrencyDisplay
                     amount={profitSummary.totalRevenue}
                     currency={profitSummary.currency}
                     size="sm"
@@ -237,7 +237,7 @@ export function ItemTransactionHistory({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Cost</p>
-                  <CurrencyDisplay
+                  <ClickableCurrencyDisplay
                     amount={profitSummary.totalCost}
                     currency={profitSummary.currency}
                     size="sm"
@@ -246,7 +246,7 @@ export function ItemTransactionHistory({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Profit</p>
-                  <ProfitDisplay
+                  <ClickableProfitDisplay
                     profit={profitSummary.cumulativeProfit}
                     currency={profitSummary.currency}
                     size="sm"
@@ -353,7 +353,7 @@ export function ItemTransactionHistory({
                                 <span className="font-mono font-medium">{entry.quantityBought}</span>
                                 <span className="text-muted-foreground"> qty</span>
                               </div>
-                              <CurrencyDisplay
+                              <ClickableCurrencyDisplay
                                 amount={entry.unitCost}
                                 currency={entry.currencyUnit}
                                 size="sm"
@@ -483,7 +483,7 @@ export function ItemTransactionHistory({
                                 <span className="font-mono font-medium">{sale.quantitySold}</span>
                                 <span className="text-muted-foreground"> sold</span>
                               </div>
-                              <CurrencyDisplay
+                              <ClickableCurrencyDisplay
                                 amount={sale.amountGained}
                                 currency={sale.currencyUnit}
                                 size="sm"

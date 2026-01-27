@@ -418,7 +418,18 @@ export default function Auth() {
 
   // Check Your Email View (after signup when email verification is required)
   if (view === 'check-email') {
+    const [cooldown, setCooldown] = useState(0);
+    
+    useEffect(() => {
+      if (cooldown > 0) {
+        const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+        return () => clearTimeout(timer);
+      }
+    }, [cooldown]);
+    
     const handleResendVerification = async () => {
+      if (cooldown > 0) return;
+      
       setIsSubmitting(true);
       try {
         const { error } = await supabase.auth.resend({
@@ -431,10 +442,12 @@ export default function Auth() {
         
         if (error) throw error;
         toast.success('Verification email sent! Check your inbox.');
+        setCooldown(60); // Start 60 second cooldown
       } catch (error: unknown) {
         const err = error as Error;
         if (err.message.includes('rate limit')) {
           toast.error('Please wait a moment before requesting another email.');
+          setCooldown(60); // Also start cooldown on rate limit
         } else {
           toast.error(err.message || 'Failed to resend verification email');
         }
@@ -471,12 +484,17 @@ export default function Auth() {
               variant="secondary"
               className="w-full"
               onClick={handleResendVerification}
-              disabled={isSubmitting}
+              disabled={isSubmitting || cooldown > 0}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Sending...
+                </>
+              ) : cooldown > 0 ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Resend in {cooldown}s
                 </>
               ) : (
                 <>
