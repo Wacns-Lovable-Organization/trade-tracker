@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ClickableCurrencyDisplay } from '@/components/ui/ClickableCurrencyDisplay';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { toast } from 'sonner';
-import { Package, Calculator, ArrowRight } from 'lucide-react';
+import { Package, Calculator, ArrowRight, ChevronsUpDown, Check, Plus } from 'lucide-react';
 import type { CurrencyUnit } from '@/types/inventory';
 import { cn } from '@/lib/utils';
 
@@ -31,11 +33,17 @@ export default function InventoryAdd() {
   const [unitCost, setUnitCost] = useState('');
   const [currencyUnit, setCurrencyUnit] = useState<CurrencyUnit>('WL');
   const [notes, setNotes] = useState('');
+  const [itemSelectOpen, setItemSelectOpen] = useState(false);
   const [boughtAt, setBoughtAt] = useState(() => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
   });
+
+  // Filtered items for search
+  const sortedItems = useMemo(() => {
+    return [...data.items].sort((a, b) => a.name.localeCompare(b.name));
+  }, [data.items]);
 
   // When selecting an existing item, auto-fill fields
   useEffect(() => {
@@ -136,23 +144,65 @@ export default function InventoryAdd() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Item Selection */}
+              {/* Item Selection with Search */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Select Existing Item (Optional)</Label>
-                  <Select value={selectedItemId} onValueChange={handleItemSelect}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select or create new..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__new__">+ Create New Item</SelectItem>
-                      {data.items.map(item => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={itemSelectOpen} onOpenChange={setItemSelectOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={itemSelectOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedItemId === '__new__' 
+                          ? '+ Create New Item' 
+                          : selectedItemId 
+                            ? data.items.find(i => i.id === selectedItemId)?.name 
+                            : 'Select or create new...'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search items..." />
+                        <CommandList>
+                          <CommandEmpty>No item found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="__new__"
+                              onSelect={() => {
+                                handleItemSelect('__new__');
+                                setItemSelectOpen(false);
+                              }}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Create New Item
+                            </CommandItem>
+                            {sortedItems.map(item => (
+                              <CommandItem
+                                key={item.id}
+                                value={item.name}
+                                onSelect={() => {
+                                  handleItemSelect(item.id);
+                                  setItemSelectOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedItemId === item.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {item.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
@@ -287,7 +337,7 @@ export default function InventoryAdd() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Unit Cost</span>
-                    <CurrencyDisplay
+                    <ClickableCurrencyDisplay
                       amount={parseFloat(unitCost) || 0}
                       currency={currencyUnit}
                       size="sm"
@@ -296,7 +346,7 @@ export default function InventoryAdd() {
                   <hr className="border-border" />
                   <div className="flex justify-between">
                     <span className="font-medium">Total Cost</span>
-                    <CurrencyDisplay
+                    <ClickableCurrencyDisplay
                       amount={totalCost}
                       currency={currencyUnit}
                       size="lg"

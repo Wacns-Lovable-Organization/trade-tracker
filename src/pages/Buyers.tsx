@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
+import { ClickableCurrencyDisplay } from '@/components/ui/ClickableCurrencyDisplay';
 import { toast } from 'sonner';
 import { Plus, Trash2, ChevronDown, ChevronRight, Package, Globe, User, Loader2, Phone, Mail, MessageCircle } from 'lucide-react';
 import type { CurrencyUnit } from '@/types/inventory';
@@ -480,7 +480,7 @@ export default function Buyers() {
                                 </TableCell>
                                 <TableCell>{item.quantity_per_unit}</TableCell>
                                 <TableCell>
-                                  <CurrencyDisplay
+                                  <ClickableCurrencyDisplay
                                     amount={item.unit_price}
                                     currency={item.currency_unit as CurrencyUnit}
                                     size="sm"
