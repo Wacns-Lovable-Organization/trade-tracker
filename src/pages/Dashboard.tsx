@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
-import { ClickableCurrencyDisplay, ClickableProfitDisplay } from '@/components/ui/ClickableCurrencyDisplay';
+import { CurrencyDisplayWithPreference, ProfitDisplayWithPreference } from '@/components/ui/CurrencyDisplayWithPreference';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -168,7 +168,7 @@ export default function Dashboard() {
             stats.inventoryByCurrency.length > 0 ? (
               <div className="space-y-1">
                 {stats.inventoryByCurrency.map(([currency, value]) => (
-                  <ClickableCurrencyDisplay key={currency} amount={value} currency={currency} />
+                  <CurrencyDisplayWithPreference key={currency} amount={value} currency={currency} />
                 ))}
               </div>
             ) : '—'
@@ -183,7 +183,7 @@ export default function Dashboard() {
             stats.revenueByCurrency.length > 0 ? (
               <div className="space-y-1">
                 {stats.revenueByCurrency.map(([currency, value]) => (
-                  <ClickableCurrencyDisplay key={currency} amount={value} currency={currency} />
+                  <CurrencyDisplayWithPreference key={currency} amount={value} currency={currency} />
                 ))}
               </div>
             ) : '—'
@@ -253,7 +253,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </div>
-                    <ClickableProfitDisplay
+                    <ProfitDisplayWithPreference
                       profit={item.profit}
                       currency={item.currency}
                       size="sm"
@@ -309,14 +309,14 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <ClickableCurrencyDisplay
+                        <CurrencyDisplayWithPreference
                           amount={sale.amountGained}
                           currency={sale.currencyUnit}
                           size="sm"
                           className="font-medium"
                         />
                         {sameCurrency && (
-                          <ClickableProfitDisplay
+                          <ProfitDisplayWithPreference
                             profit={profit}
                             currency={sale.currencyUnit}
                             size="sm"

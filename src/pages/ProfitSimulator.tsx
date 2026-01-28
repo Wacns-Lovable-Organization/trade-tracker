@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClickableCurrencyDisplay, ClickableProfitDisplay } from '@/components/ui/ClickableCurrencyDisplay';
+import { CurrencyDisplayWithPreference, ProfitDisplayWithPreference } from '@/components/ui/CurrencyDisplayWithPreference';
 import { toast } from 'sonner';
 import { Calculator, Package, TrendingUp, TrendingDown, Zap, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -265,7 +265,7 @@ export default function ProfitSimulator() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-lg bg-muted">
                     <div className="text-sm text-muted-foreground">Projected Revenue</div>
-                    <ClickableCurrencyDisplay
+                    <CurrencyDisplayWithPreference
                       amount={result.projectedRevenue}
                       currency={sellCurrency}
                       size="lg"
@@ -274,7 +274,7 @@ export default function ProfitSimulator() {
                   </div>
                   <div className="p-4 rounded-lg bg-muted">
                     <div className="text-sm text-muted-foreground">Cost of Goods (FIFO)</div>
-                    <ClickableCurrencyDisplay
+                    <CurrencyDisplayWithPreference
                       amount={result.simulatedCogs}
                       currency={entryCurrency}
                       size="lg"
@@ -296,7 +296,7 @@ export default function ProfitSimulator() {
                     <div className="text-sm font-medium text-muted-foreground mb-2">
                       Projected Profit
                     </div>
-                    <ClickableProfitDisplay
+                    <ProfitDisplayWithPreference
                       profit={result.projectedProfit}
                       currency={sellCurrency}
                       size="lg"
@@ -339,13 +339,13 @@ export default function ProfitSimulator() {
                             <span className="mx-2">•</span>
                             <span className="font-mono">{item.qtyUsed}</span>
                             <span className="text-muted-foreground"> @ </span>
-                            <ClickableCurrencyDisplay
+                            <CurrencyDisplayWithPreference
                               amount={item.unitCost}
                               currency={entry?.currencyUnit || 'WL'}
                               size="sm"
                             />
                           </div>
-                          <ClickableCurrencyDisplay
+                          <CurrencyDisplayWithPreference
                             amount={item.costContribution}
                             currency={entry?.currencyUnit || 'WL'}
                             size="sm"

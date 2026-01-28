@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/contexts/AppContext';
-import { useUserSettings } from '@/hooks/useUserSettings';
+import { useUserSettings, type CurrencyDisplayMode } from '@/hooks/useUserSettings';
 import { useLowStockAlerts } from '@/hooks/useLowStockAlerts';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Info, Cloud, Bell, AlertTriangle, Loader2, Globe } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Info, Cloud, Bell, AlertTriangle, Loader2, Globe, Coins } from 'lucide-react';
 import { CsvImportExport } from '@/components/settings/CsvImportExport';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { FeatureGate } from '@/components/FeatureGate';
@@ -51,6 +52,17 @@ export default function Settings() {
     }
   };
 
+  const handleCurrencyDisplayChange = async (mode: CurrencyDisplayMode) => {
+    setIsUpdating(true);
+    const { error } = await updateSettings({ default_currency_display: mode });
+    if (error) {
+      toast.error(t('common.error'));
+    } else {
+      toast.success('Currency display preference updated');
+    }
+    setIsUpdating(false);
+  };
+
   return (
     <div>
       <PageHeader
@@ -75,8 +87,63 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* Currency Display Preference */}
+        <Card className="animate-fade-in" style={{ animationDelay: '50ms' }}>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Coins className="w-5 h-5 text-primary" />
+              <CardTitle>Currency Display</CardTitle>
+            </div>
+            <CardDescription>
+              Choose your default currency display format. You can always click on any price to cycle through formats.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {settingsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <RadioGroup
+                value={settings?.default_currency_display || 'original'}
+                onValueChange={(v) => handleCurrencyDisplayChange(v as CurrencyDisplayMode)}
+                className="grid gap-3"
+                disabled={isUpdating}
+              >
+                <div className="flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                  <RadioGroupItem value="original" id="original" />
+                  <Label htmlFor="original" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Original Format</div>
+                    <div className="text-sm text-muted-foreground">
+                      Display as entered (e.g., 86492 <span className="px-1 py-0.5 text-xs font-mono rounded currency-wl">WL</span>)
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                  <RadioGroupItem value="dl" id="dl" />
+                  <Label htmlFor="dl" className="flex-1 cursor-pointer">
+                    <div className="font-medium">DL + WL Breakdown</div>
+                    <div className="text-sm text-muted-foreground">
+                      Convert to DL and WL (e.g., 864 <span className="px-1 py-0.5 text-xs font-mono rounded currency-dl">DL</span>, 92 <span className="px-1 py-0.5 text-xs font-mono rounded currency-wl">WL</span>)
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                  <RadioGroupItem value="bgl" id="bgl" />
+                  <Label htmlFor="bgl" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Full Breakdown</div>
+                    <div className="text-sm text-muted-foreground">
+                      Convert to BGL, DL, and WL (e.g., 8 <span className="px-1 py-0.5 text-xs font-mono rounded currency-bgl">BGL</span>, 64 <span className="px-1 py-0.5 text-xs font-mono rounded currency-dl">DL</span>, 92 <span className="px-1 py-0.5 text-xs font-mono rounded currency-wl">WL</span>)
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Cloud Sync Info */}
-        <Card className="animate-fade-in border-primary/30" style={{ animationDelay: '50ms' }}>
+        <Card className="animate-fade-in border-primary/30" style={{ animationDelay: '100ms' }}>
           <CardHeader>
             <div className="flex items-center gap-2">
               <Cloud className="w-5 h-5 text-primary" />
@@ -90,7 +157,7 @@ export default function Settings() {
 
         {/* Low Stock Alerts Settings */}
         <FeatureGate featureKey="low_stock_alerts">
-          <Card className="animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <Card className="animate-fade-in" style={{ animationDelay: '150ms' }}>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Bell className="w-5 h-5 text-primary" />
@@ -181,7 +248,7 @@ export default function Settings() {
         </FeatureGate>
 
         {/* Info Card */}
-        <Card className="animate-fade-in" style={{ animationDelay: '150ms' }}>
+        <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
           <CardHeader>
             <div className="flex items-center gap-2">
               <Info className="w-5 h-5 text-primary" />
@@ -214,7 +281,7 @@ export default function Settings() {
         </Card>
 
         {/* Data Info */}
-        <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+        <Card className="animate-fade-in" style={{ animationDelay: '250ms' }}>
           <CardHeader>
             <CardTitle>{t('settings.dataManagement')}</CardTitle>
           </CardHeader>
