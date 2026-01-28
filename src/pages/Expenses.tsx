@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ClickableCurrencyDisplay } from '@/components/ui/ClickableCurrencyDisplay';
+import { CurrencyDisplayWithPreference } from '@/components/ui/CurrencyDisplayWithPreference';
 import { toast } from 'sonner';
 import { Plus, Trash2, Edit, Loader2, Receipt, TrendingDown, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
@@ -232,7 +232,7 @@ export default function Expenses() {
               <div className="space-y-1">
                 {Object.entries(monthlyTotal).map(([cur, val]) => (
                   <div key={cur} className="text-2xl font-bold text-loss">
-                    <ClickableCurrencyDisplay amount={val} currency={cur as CurrencyUnit} />
+                    <CurrencyDisplayWithPreference amount={val} currency={cur as CurrencyUnit} />
                   </div>
                 ))}
               </div>
@@ -252,7 +252,7 @@ export default function Expenses() {
               <div className="space-y-1">
                 {Object.entries(totals).map(([cur, val]) => (
                   <div key={cur} className="text-2xl font-bold">
-                    <ClickableCurrencyDisplay amount={val} currency={cur as CurrencyUnit} />
+                    <CurrencyDisplayWithPreference amount={val} currency={cur as CurrencyUnit} />
                   </div>
                 ))}
               </div>
@@ -329,7 +329,7 @@ export default function Expenses() {
                       )}
                     </TableCell>
                     <TableCell className="text-right text-loss font-medium">
-                      <ClickableCurrencyDisplay
+                      <CurrencyDisplayWithPreference
                         amount={expense.amount}
                         currency={expense.currency_unit as CurrencyUnit}
                       />

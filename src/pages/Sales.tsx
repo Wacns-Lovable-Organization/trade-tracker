@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClickableCurrencyDisplay, ClickableProfitDisplay } from '@/components/ui/ClickableCurrencyDisplay';
+import { CurrencyDisplayWithPreference, ProfitDisplayWithPreference } from '@/components/ui/CurrencyDisplayWithPreference';
 import { toast } from 'sonner';
 import { TrendingUp, Package, ArrowRight, Coins, Search, ArrowLeft, History } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -357,7 +357,7 @@ export default function Sales() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Revenue</span>
-                    <ClickableCurrencyDisplay
+                    <CurrencyDisplayWithPreference
                       amount={amount}
                       currency={currencyUnit}
                       size="sm"
@@ -365,7 +365,7 @@ export default function Sales() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Cost of Goods</span>
-                    <ClickableCurrencyDisplay
+                    <CurrencyDisplayWithPreference
                       amount={estimatedCost}
                       currency={selectedItemInfo?.currency || 'WL'}
                       size="sm"
@@ -375,7 +375,7 @@ export default function Sales() {
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Profit</span>
                     {sameCurrency && profit !== null ? (
-                      <ClickableProfitDisplay
+                      <ProfitDisplayWithPreference
                         profit={qty > 0 && amount > 0 ? profit : 0}
                         currency={currencyUnit}
                         size="lg"

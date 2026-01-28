@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
 import { ViewAsProvider } from "@/contexts/ViewAsContext";
+import { CurrencyDisplayProvider } from "@/contexts/CurrencyDisplayContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { RTLProvider } from "@/components/RTLProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -56,54 +57,56 @@ const App = () => (
             <AuthProvider>
               <PageAnalyticsTracker />
               <ViewAsProvider>
-                <Routes>
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/install" element={<Install />} />
-                  <Route
-                    path="/*"
-                    element={
-                      <ProtectedRoute>
-                        <AppProvider>
-                          <ViewAsBanner />
-                          <AppLayout>
-                            <Routes>
-                              <Route path="/" element={<Dashboard />} />
-                              <Route path="/settings" element={<Settings />} />
-                              <Route path="/categories" element={<Categories />} />
-                              <Route path="/inventory/add" element={<InventoryAdd />} />
-                              <Route path="/inventory" element={<InventoryList />} />
-                              <Route path="/sales" element={<Sales />} />
-                              <Route path="/simulate" element={
-                                <FeatureGate featureKey="profit_simulator">
-                                  <ProfitSimulator />
-                                </FeatureGate>
-                              } />
-                              <Route path="/admin" element={<AdminPanel />} />
-                              <Route path="/suppliers" element={
-                                <FeatureGate featureKey="suppliers_management">
-                                  <Suppliers />
-                                </FeatureGate>
-                              } />
-                              <Route path="/buyers" element={
-                                <FeatureGate featureKey="buyers_management">
-                                  <Buyers />
-                                </FeatureGate>
-                              } />
-                              <Route path="/expenses" element={
-                                <FeatureGate featureKey="expense_tracking">
-                                  <Expenses />
-                                </FeatureGate>
-                              } />
-                              <Route path="/reports" element={<Reports />} />
-                              <Route path="/profile" element={<Profile />} />
-                              <Route path="*" element={<NotFound />} />
-                            </Routes>
-                          </AppLayout>
-                        </AppProvider>
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
+                <CurrencyDisplayProvider>
+                  <Routes>
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/install" element={<Install />} />
+                    <Route
+                      path="/*"
+                      element={
+                        <ProtectedRoute>
+                          <AppProvider>
+                            <ViewAsBanner />
+                            <AppLayout>
+                              <Routes>
+                                <Route path="/" element={<Dashboard />} />
+                                <Route path="/settings" element={<Settings />} />
+                                <Route path="/categories" element={<Categories />} />
+                                <Route path="/inventory/add" element={<InventoryAdd />} />
+                                <Route path="/inventory" element={<InventoryList />} />
+                                <Route path="/sales" element={<Sales />} />
+                                <Route path="/simulate" element={
+                                  <FeatureGate featureKey="profit_simulator">
+                                    <ProfitSimulator />
+                                  </FeatureGate>
+                                } />
+                                <Route path="/admin" element={<AdminPanel />} />
+                                <Route path="/suppliers" element={
+                                  <FeatureGate featureKey="suppliers_management">
+                                    <Suppliers />
+                                  </FeatureGate>
+                                } />
+                                <Route path="/buyers" element={
+                                  <FeatureGate featureKey="buyers_management">
+                                    <Buyers />
+                                  </FeatureGate>
+                                } />
+                                <Route path="/expenses" element={
+                                  <FeatureGate featureKey="expense_tracking">
+                                    <Expenses />
+                                  </FeatureGate>
+                                } />
+                                <Route path="/reports" element={<Reports />} />
+                                <Route path="/profile" element={<Profile />} />
+                                <Route path="*" element={<NotFound />} />
+                              </Routes>
+                            </AppLayout>
+                          </AppProvider>
+                        </ProtectedRoute>
+                      }
+                    />
+                  </Routes>
+                </CurrencyDisplayProvider>
               </ViewAsProvider>
             </AuthProvider>
           </BrowserRouter>

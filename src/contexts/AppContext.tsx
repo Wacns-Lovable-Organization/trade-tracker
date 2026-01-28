@@ -19,6 +19,7 @@ export interface DbItem {
   name: string;
   category_id: string | null;
   image_url: string | null;
+  is_cost_only: boolean;
   created_at: string;
 }
 
@@ -71,6 +72,7 @@ export interface Item {
   name: string;
   defaultCategoryId: string;
   imageUrl: string | null;
+  isCostOnly: boolean;
   createdAt: string;
 }
 
@@ -235,6 +237,7 @@ function mapItem(db: DbItem): Item {
     name: db.name,
     defaultCategoryId: db.category_id || '',
     imageUrl: db.image_url || null,
+    isCostOnly: db.is_cost_only || false,
     createdAt: db.created_at,
   };
 }

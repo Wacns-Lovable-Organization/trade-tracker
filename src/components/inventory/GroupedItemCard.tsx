@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ClickableCurrencyDisplay } from '@/components/ui/ClickableCurrencyDisplay';
-import { ChevronRight, Package } from 'lucide-react';
+import { CurrencyDisplayWithPreference } from '@/components/ui/CurrencyDisplayWithPreference';
+import { ChevronRight, Package, Ban } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CurrencyUnit } from '@/types/inventory';
 
@@ -15,6 +15,7 @@ export interface GroupedItem {
   lifetimeTotalCost: number;
   currency: CurrencyUnit | null;
   imageUrl?: string | null;
+  isCostOnly?: boolean;
 }
 
 interface GroupedItemCardProps {
@@ -45,7 +46,15 @@ export function GroupedItemCard({ item, onClick, selected, showArrow = false, cl
           </Avatar>
           
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold truncate">{item.name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold truncate">{item.name}</h3>
+              {item.isCostOnly && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-warning/20 text-warning">
+                  <Ban className="w-3 h-3" />
+                  Cost Only
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
               <span>{item.categoryName}</span>
             </div>
@@ -56,7 +65,7 @@ export function GroupedItemCard({ item, onClick, selected, showArrow = false, cl
               {item.remainingQty} <span className="text-muted-foreground text-sm font-normal">of {item.totalPurchasedQty}</span>
             </div>
             <div className="text-xs text-muted-foreground">
-              <ClickableCurrencyDisplay 
+              <CurrencyDisplayWithPreference 
                 amount={item.lifetimeTotalCost} 
                 currency={item.currency} 
                 size="sm"

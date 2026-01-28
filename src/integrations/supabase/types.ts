@@ -393,6 +393,7 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          is_cost_only: boolean
           low_stock_threshold: number | null
           name: string
           user_id: string
@@ -402,6 +403,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          is_cost_only?: boolean
           low_stock_threshold?: number | null
           name: string
           user_id: string
@@ -411,6 +413,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          is_cost_only?: boolean
           low_stock_threshold?: number | null
           name?: string
           user_id?: string
@@ -926,6 +929,7 @@ export type Database = {
       user_settings: {
         Row: {
           created_at: string
+          default_currency_display: string
           email_notifications_enabled: boolean
           id: string
           language: string
@@ -938,6 +942,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_currency_display?: string
           email_notifications_enabled?: boolean
           id?: string
           language?: string
@@ -950,6 +955,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_currency_display?: string
           email_notifications_enabled?: boolean
           id?: string
           language?: string

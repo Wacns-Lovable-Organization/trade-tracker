@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { CurrencyUnit } from '@/types/inventory';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type DisplayMode = 'original' | 'dl' | 'bgl';
 
@@ -10,6 +16,7 @@ interface ClickableCurrencyDisplayProps {
   className?: string;
   showSign?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  defaultMode?: DisplayMode;
 }
 
 // Currency conversion: 100 WL = 1 DL, 100 DL = 1 BGL
@@ -46,8 +53,14 @@ export function ClickableCurrencyDisplay({
   className,
   showSign = false,
   size = 'md',
+  defaultMode = 'original',
 }: ClickableCurrencyDisplayProps) {
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('original');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(defaultMode);
+
+  // Update display mode when defaultMode prop changes
+  useEffect(() => {
+    setDisplayMode(defaultMode);
+  }, [defaultMode]);
 
   const isPositive = amount >= 0;
   const totalInWL = convertToWL(amount, currency || 'WL');
@@ -181,20 +194,28 @@ export function ClickableCurrencyDisplay({
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className={cn(
-        'number-display inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity',
-        'focus:outline-none focus:ring-2 focus:ring-primary/50 rounded px-1 -mx-1',
-        sizeClasses[size],
-        showSign && (isPositive ? 'text-profit' : 'text-loss'),
-        className
-      )}
-      title="Click to convert currency"
-    >
-      {renderContent()}
-    </button>
+    <TooltipProvider>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={handleClick}
+            className={cn(
+              'number-display inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity',
+              'focus:outline-none focus:ring-2 focus:ring-primary/50 rounded px-1 -mx-1',
+              sizeClasses[size],
+              showSign && (isPositive ? 'text-profit' : 'text-loss'),
+              className
+            )}
+          >
+            {renderContent()}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs">
+          Click to convert currency
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -204,6 +225,7 @@ interface ClickableProfitDisplayProps {
   currency: CurrencyUnit | null;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  defaultMode?: DisplayMode;
 }
 
 export function ClickableProfitDisplay({
@@ -211,6 +233,7 @@ export function ClickableProfitDisplay({
   currency,
   className,
   size = 'md',
+  defaultMode = 'original',
 }: ClickableProfitDisplayProps) {
   return (
     <ClickableCurrencyDisplay
@@ -219,6 +242,7 @@ export function ClickableProfitDisplay({
       showSign
       size={size}
       className={className}
+      defaultMode={defaultMode}
     />
   );
 }
