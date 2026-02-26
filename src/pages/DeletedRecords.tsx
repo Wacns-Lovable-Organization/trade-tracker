@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -18,6 +20,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { 
   Trash2, 
   RotateCcw, 
@@ -28,9 +31,11 @@ import {
   Archive,
   Loader2,
   CheckSquare,
-  Search
+  Search,
+  CalendarIcon,
+  X
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
 const typeConfig = {
   inventory: { label: 'Inventory', icon: ShoppingCart, color: 'bg-primary/10 text-primary' },
@@ -54,12 +59,25 @@ export default function DeletedRecords() {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
 
   const filteredRecords = useMemo(() => {
-    if (!searchQuery.trim()) return records;
-    const q = searchQuery.toLowerCase();
-    return records.filter(r => r.name.toLowerCase().includes(q) || r.details.toLowerCase().includes(q));
-  }, [records, searchQuery]);
+    let result = records;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(r => r.name.toLowerCase().includes(q) || r.details.toLowerCase().includes(q));
+    }
+    if (dateFrom || dateTo) {
+      result = result.filter(r => {
+        const d = new Date(r.createdAt);
+        if (dateFrom && d < startOfDay(dateFrom)) return false;
+        if (dateTo && d > endOfDay(dateTo)) return false;
+        return true;
+      });
+    }
+    return result;
+  }, [records, searchQuery, dateFrom, dateTo]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -146,6 +164,36 @@ export default function DeletedRecords() {
             className="pl-9"
           />
         </div>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs", !dateFrom && "text-muted-foreground")}>
+              <CalendarIcon className="w-3.5 h-3.5" />
+              {dateFrom ? format(dateFrom, 'MMM d, yyyy') : 'From'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs", !dateTo && "text-muted-foreground")}>
+              <CalendarIcon className="w-3.5 h-3.5" />
+              {dateTo ? format(dateTo, 'MMM d, yyyy') : 'To'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+          </PopoverContent>
+        </Popover>
+
+        {(dateFrom || dateTo) && (
+          <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+            <X className="w-3.5 h-3.5" /> Clear dates
+          </Button>
+        )}
 
         {filteredRecords.length > 0 && (
           <div className="flex items-center gap-2 ml-auto">
