@@ -73,10 +73,10 @@ export function PriceAlertPanel() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`inline-flex items-center gap-1 text-xs font-normal px-1.5 py-0.5 rounded-full ${discordEnabled ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                    <MessageCircle className="w-3 h-3" />
-                    {discordEnabled ? 'Discord ON' : 'Discord OFF'}
-                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 text-xs font-normal px-1.5 py-0.5 rounded-full ${discordEnabled ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground cursor-pointer hover:bg-muted/80 transition-colors'}`}
+                    {...(!discordEnabled ? { onClick: () => navigate('/settings'), role: 'link' } : {})}
+                  >
                 </TooltipTrigger>
                 <TooltipContent>
                   {discordEnabled
