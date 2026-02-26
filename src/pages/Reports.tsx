@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useSalesForecast } from '@/hooks/useSalesForecast';
@@ -15,6 +15,7 @@ import { FileDown, TrendingUp, Package, DollarSign, Loader2, Brain, Sparkles, Ar
 import { subDays, startOfMonth } from 'date-fns';
 import type { CurrencyUnit } from '@/types/inventory';
 import { CostBreakdownReport } from '@/components/reports/CostBreakdownReport';
+import { ShareButtons } from '@/components/sharing/ShareButtons';
 
 export default function Reports() {
   const { data } = useApp();
