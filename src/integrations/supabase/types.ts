@@ -681,6 +681,36 @@ export type Database = {
           },
         ]
       }
+      shared_snapshots: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          snapshot_data: Json
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          snapshot_data?: Json
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          snapshot_data?: Json
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       supplier_items: {
         Row: {
           created_at: string
@@ -942,6 +972,7 @@ export type Database = {
         Row: {
           created_at: string
           default_currency_display: string
+          discord_webhook_url: string | null
           email_notifications_enabled: boolean
           id: string
           language: string
@@ -955,6 +986,7 @@ export type Database = {
         Insert: {
           created_at?: string
           default_currency_display?: string
+          discord_webhook_url?: string | null
           email_notifications_enabled?: boolean
           id?: string
           language?: string
@@ -968,6 +1000,7 @@ export type Database = {
         Update: {
           created_at?: string
           default_currency_display?: string
+          discord_webhook_url?: string | null
           email_notifications_enabled?: boolean
           id?: string
           language?: string
