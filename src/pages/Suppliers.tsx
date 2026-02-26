@@ -20,6 +20,7 @@ import {
   Plus, Trash2, Edit, ChevronDown, ChevronRight, Package, Globe, User, Loader2,
   Phone, Mail, MessageCircle, Instagram, Facebook, Twitter, Youtube
 } from 'lucide-react';
+import { SupplierRatingInline } from '@/components/ratings/SupplierRatingInline';
 import type { CurrencyUnit } from '@/types/inventory';
 
 // Social media icons for display
