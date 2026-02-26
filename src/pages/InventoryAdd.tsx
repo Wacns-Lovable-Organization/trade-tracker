@@ -291,6 +291,25 @@ export default function InventoryAdd() {
         description="Record a new purchase to your inventory"
       />
 
+      {/* Quick Restock Templates */}
+      <TemplateList
+        templates={templates}
+        onSelect={(t) => {
+          if (t.item_id) {
+            setSelectedItemId(t.item_id);
+          } else {
+            setSelectedItemId('__new__');
+          }
+          setItemName(t.item_name);
+          if (t.category_id) setCategoryId(t.category_id);
+          setQuantityBought(t.default_quantity.toString());
+          setUnitCost(t.default_unit_cost.toString());
+          setCurrencyUnit(t.default_currency_unit as CurrencyUnit);
+          setPriceInputMode('unit');
+        }}
+        onDelete={(id) => deleteTemplate(id)}
+      />
+
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Form */}
