@@ -19,6 +19,20 @@ export interface CsvSaleRecord {
   sold_at: string;
 }
 
+export interface CsvCategoryRecord {
+  name: string;
+}
+
+export interface CsvExpenseRecord {
+  description: string;
+  category: string;
+  amount: number;
+  currency: string;
+  expense_date: string;
+  is_recurring: string;
+  notes: string;
+}
+
 // Convert array of objects to CSV string
 export function toCSV<T extends Record<string, unknown>>(data: T[], headers?: string[]): string {
   if (data.length === 0) return '';
