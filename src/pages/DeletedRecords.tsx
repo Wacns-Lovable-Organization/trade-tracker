@@ -165,6 +165,36 @@ export default function DeletedRecords() {
           />
         </div>
 
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs", !dateFrom && "text-muted-foreground")}>
+              <CalendarIcon className="w-3.5 h-3.5" />
+              {dateFrom ? format(dateFrom, 'MMM d, yyyy') : 'From'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs", !dateTo && "text-muted-foreground")}>
+              <CalendarIcon className="w-3.5 h-3.5" />
+              {dateTo ? format(dateTo, 'MMM d, yyyy') : 'To'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+          </PopoverContent>
+        </Popover>
+
+        {(dateFrom || dateTo) && (
+          <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+            <X className="w-3.5 h-3.5" /> Clear dates
+          </Button>
+        )}
+
         {filteredRecords.length > 0 && (
           <div className="flex items-center gap-2 ml-auto">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={toggleSelectAll}>
