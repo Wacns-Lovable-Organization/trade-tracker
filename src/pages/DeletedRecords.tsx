@@ -189,6 +189,10 @@ export default function DeletedRecords() {
               >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
+                    <Checkbox
+                      checked={selectedIds.has(`${record.type}-${record.id}`)}
+                      onCheckedChange={() => toggleSelect(`${record.type}-${record.id}`)}
+                    />
                     <div className={`p-2 rounded-lg ${config.color}`}>
                       <Icon className="w-5 h-5" />
                     </div>
