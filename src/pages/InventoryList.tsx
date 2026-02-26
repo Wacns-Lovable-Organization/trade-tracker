@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Plus, Package, Search, Filter } from 'lucide-react';
+import { Plus, Package, Search, Filter, Ban } from 'lucide-react';
 import { GroupedItemCard, type GroupedItem } from '@/components/inventory/GroupedItemCard';
 import { ItemTransactionHistory } from '@/components/inventory/ItemTransactionHistory';
 import type { CurrencyUnit } from '@/types/inventory';
@@ -16,6 +16,7 @@ export default function InventoryList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'OPEN' | 'CLOSED'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [itemTypeFilter, setItemTypeFilter] = useState<'all' | 'resellable' | 'cost-only'>('all');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<typeof data.items[0] | null>(null);
 
@@ -31,6 +32,10 @@ export default function InventoryList() {
       // Apply filters
       if (statusFilter !== 'all' && entry.status !== statusFilter) return;
       if (categoryFilter !== 'all' && entry.snapshotCategoryId !== categoryFilter) return;
+
+      // Apply item type filter
+      if (itemTypeFilter === 'cost-only' && !item.isCostOnly) return;
+      if (itemTypeFilter === 'resellable' && item.isCostOnly) return;
 
       const existing = itemMap.get(item.id);
       const category = data.categories.find(c => c.id === entry.snapshotCategoryId);
@@ -63,7 +68,7 @@ export default function InventoryList() {
     });
 
     return Array.from(itemMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [data.inventoryEntries, data.items, data.categories, data.sales, statusFilter, categoryFilter]);
+  }, [data.inventoryEntries, data.items, data.categories, data.sales, statusFilter, categoryFilter, itemTypeFilter]);
 
   // Filter by search
   const filteredItems = useMemo(() => {
@@ -135,6 +140,17 @@ export default function InventoryList() {
                       {cat.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select value={itemTypeFilter} onValueChange={(v) => setItemTypeFilter(v as 'all' | 'resellable' | 'cost-only')}>
+                <SelectTrigger className="w-36">
+                  <Ban className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="resellable">Resellable</SelectItem>
+                  <SelectItem value="cost-only">Cost Only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
