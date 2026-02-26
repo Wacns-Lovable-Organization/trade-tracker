@@ -135,6 +135,24 @@ Deno.serve(async (req) => {
         };
         break;
 
+      case "price_alert":
+        embed = {
+          title: "🔔 Price Alert Triggered!",
+          description: `A trade post matched your price alert for **${data.item_name}**!`,
+          color: 0x3b82f6,
+          fields: [
+            { name: "Item", value: data.item_name || "Unknown", inline: true },
+            { name: "Posted Price", value: `${data.posted_price || 0} ${data.currency_unit || "WL"}`, inline: true },
+            { name: "Your Target", value: `${data.alert_type === 'below' ? '≤' : '≥'} ${data.target_price || 0} ${data.currency_unit || "WL"}`, inline: true },
+            { name: "Seller", value: data.grow_id || "Unknown", inline: true },
+            { name: "World", value: data.world || "N/A", inline: true },
+            { name: "Quantity", value: data.quantity ? String(data.quantity) : "N/A", inline: true },
+          ],
+          timestamp: new Date().toISOString(),
+          footer: { text: "GrowStock Price Watch" },
+        };
+        break;
+
       default:
         embed = {
           title: "📊 GrowStock Update",

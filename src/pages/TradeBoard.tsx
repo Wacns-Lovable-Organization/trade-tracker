@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTradePosts } from '@/hooks/useTradePosts';
 import { usePriceAlerts } from '@/hooks/usePriceAlerts';
+import { useDiscordWebhook } from '@/hooks/useDiscordWebhook';
 import { TradePostCard } from '@/components/trades/TradePostCard';
 import { CreateTradePostDialog } from '@/components/trades/CreateTradePostDialog';
 import { PriceAlertPanel } from '@/components/trades/PriceAlertPanel';
