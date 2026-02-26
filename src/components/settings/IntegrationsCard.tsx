@@ -28,7 +28,7 @@ export function IntegrationsCard() {
 
   // Sync local state with settings once loaded
   if (settings && !initialized) {
-    setWebhookUrl((settings as any).discord_webhook_url || '');
+    setWebhookUrl(settings.discord_webhook_url || '');
     setInitialized(true);
   }
 
