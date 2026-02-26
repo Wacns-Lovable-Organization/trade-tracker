@@ -16,9 +16,22 @@ import { toast } from 'sonner';
 export default function TradeBoard() {
   const { user } = useAuth();
   const { posts, isLoading, createPost, markFulfilled, deletePost } = useTradePosts();
+  const { checkAlerts } = usePriceAlerts();
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+
+  // Check price alerts when posts change
+  useEffect(() => {
+    if (posts.length === 0) return;
+    const latestPost = posts[0];
+    if (!latestPost.price_per_unit) return;
+    
+    const triggered = checkAlerts(latestPost.item_name, latestPost.price_per_unit, latestPost.currency_unit);
+    triggered.forEach(alert => {
+      toast.info(`🔔 Price Alert: ${alert.item_name} posted at ${latestPost.price_per_unit} ${latestPost.currency_unit} (your target: ${alert.alert_type === 'below' ? '≤' : '≥'} ${alert.target_price} ${alert.currency_unit})`);
+    });
+  }, [posts.length]); // Only check on new posts
 
   const filteredPosts = useMemo(() => {
     return posts.filter(p => {
