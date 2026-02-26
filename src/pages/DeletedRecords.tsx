@@ -70,10 +70,10 @@ export default function DeletedRecords() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === records.length) {
+    if (selectedIds.size === filteredRecords.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(records.map(r => `${r.type}-${r.id}`)));
+      setSelectedIds(new Set(filteredRecords.map(r => `${r.type}-${r.id}`)));
     }
   };
 
