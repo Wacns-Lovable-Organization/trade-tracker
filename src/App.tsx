@@ -98,6 +98,7 @@ const App = () => (
                                   </FeatureGate>
                                 } />
                                 <Route path="/reports" element={<Reports />} />
+                                <Route path="/deleted" element={<DeletedRecords />} />
                                 <Route path="/profile" element={<Profile />} />
                                 <Route path="*" element={<NotFound />} />
                               </Routes>
