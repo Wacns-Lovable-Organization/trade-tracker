@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTradePosts } from '@/hooks/useTradePosts';
 import { usePriceAlerts } from '@/hooks/usePriceAlerts';
+import { useDiscordWebhook } from '@/hooks/useDiscordWebhook';
 import { TradePostCard } from '@/components/trades/TradePostCard';
 import { CreateTradePostDialog } from '@/components/trades/CreateTradePostDialog';
 import { PriceAlertPanel } from '@/components/trades/PriceAlertPanel';
@@ -17,21 +18,42 @@ export default function TradeBoard() {
   const { user } = useAuth();
   const { posts, isLoading, createPost, markFulfilled, deletePost } = useTradePosts();
   const { checkAlerts } = usePriceAlerts();
+  const { sendDiscordNotification, isConfigured: discordConfigured } = useDiscordWebhook();
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const prevPostCount = useRef(posts.length);
 
-  // Check price alerts when posts change
+  // Check price alerts when new posts appear
   useEffect(() => {
-    if (posts.length === 0) return;
+    if (posts.length === 0 || posts.length <= prevPostCount.current) {
+      prevPostCount.current = posts.length;
+      return;
+    }
+    prevPostCount.current = posts.length;
+
     const latestPost = posts[0];
     if (!latestPost.price_per_unit) return;
     
     const triggered = checkAlerts(latestPost.item_name, latestPost.price_per_unit, latestPost.currency_unit);
     triggered.forEach(alert => {
       toast.info(`🔔 Price Alert: ${alert.item_name} posted at ${latestPost.price_per_unit} ${latestPost.currency_unit} (your target: ${alert.alert_type === 'below' ? '≤' : '≥'} ${alert.target_price} ${alert.currency_unit})`);
+      
+      // Send Discord notification if configured
+      if (discordConfigured) {
+        sendDiscordNotification('price_alert', {
+          item_name: latestPost.item_name,
+          posted_price: latestPost.price_per_unit,
+          target_price: alert.target_price,
+          alert_type: alert.alert_type,
+          currency_unit: latestPost.currency_unit,
+          grow_id: latestPost.grow_id,
+          world: latestPost.world,
+          quantity: latestPost.quantity,
+        });
+      }
     });
-  }, [posts.length]); // Only check on new posts
+  }, [posts.length]);
 
   const filteredPosts = useMemo(() => {
     return posts.filter(p => {
