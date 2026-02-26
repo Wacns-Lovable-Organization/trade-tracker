@@ -717,8 +717,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     
     if (error) throw error;
+    
+    // Send Discord webhook notification (fire-and-forget)
+    const itemObj = items.find(i => i.id === itemId);
+    supabase.functions.invoke('send-discord-webhook', {
+      body: {
+        event_type: 'sale_recorded',
+        data: {
+          item_name: itemObj?.name || 'Unknown',
+          quantity_sold: quantitySold,
+          amount_gained: amountGained,
+          currency_unit: currencyUnit,
+          profit: Number(profit.toFixed(2)),
+        },
+      },
+    }).catch(() => {}); // silently ignore errors
+    
     await fetchData();
-  }, [user, effectiveUserId, getTotalAvailableForItem, fetchData]);
+  }, [user, effectiveUserId, getTotalAvailableForItem, items, fetchData]);
 
   // Update sale
   const updateSale = useCallback(async (

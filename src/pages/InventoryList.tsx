@@ -95,18 +95,62 @@ export default function InventoryList() {
   const totalEntries = data.inventoryEntries.length;
   const totalItems = new Set(data.inventoryEntries.map(e => e.itemId)).size;
 
+  const handleShareInventory = async () => {
+    if (!user || filteredItems.length === 0) return;
+    setIsSharing(true);
+    try {
+      const snapshotData = filteredItems.map(item => ({
+        name: item.name,
+        quantity: item.remainingQty,
+        unitCost: item.totalPurchasedQty > 0 ? Math.round(item.lifetimeTotalCost / item.totalPurchasedQty) : 0,
+        currency: item.currency,
+        category: item.categoryName,
+      }));
+
+      const { data: snapshot, error } = await supabase
+        .from('shared_snapshots')
+        .insert({
+          user_id: user.id,
+          snapshot_data: snapshotData,
+          title: `Inventory (${filteredItems.length} items)`,
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      const shareUrl = `${window.location.origin}/share/${snapshot.id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Share link copied to clipboard!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create snapshot');
+    }
+    setIsSharing(false);
+  };
+
   return (
     <div>
       <PageHeader
         title="Inventory"
         description={`${totalItems} items • ${totalEntries} entries`}
       >
-        <Button asChild className="gap-2">
-          <Link to="/inventory/add">
-            <Plus className="w-4 h-4" />
-            Add Entry
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleShareInventory}
+            disabled={isSharing || filteredItems.length === 0}
+          >
+            {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+            Share
+          </Button>
+          <Button asChild className="gap-2">
+            <Link to="/inventory/add">
+              <Plus className="w-4 h-4" />
+              Add Entry
+            </Link>
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Filters */}

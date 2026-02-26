@@ -166,12 +166,34 @@ export default function Reports() {
     }
   };
 
+  // Build shareable profit summary text
+  const profitSummaryText = useMemo(() => {
+    const lines = ['📊 GrowStock Profit Summary\n'];
+    const revByCurrency: Record<string, number> = {};
+    const profitByCurrency: Record<string, number> = {};
+    data.sales.forEach(sale => {
+      const entry = data.inventoryEntries.find(e => e.id === sale.inventoryEntryId);
+      const cost = (entry?.unitCost || 0) * sale.quantitySold;
+      revByCurrency[sale.currencyUnit] = (revByCurrency[sale.currencyUnit] || 0) + sale.amountGained;
+      profitByCurrency[sale.currencyUnit] = (profitByCurrency[sale.currencyUnit] || 0) + (sale.amountGained - cost);
+    });
+    Object.entries(revByCurrency).forEach(([currency, revenue]) => {
+      lines.push(`💰 Revenue: ${revenue.toLocaleString()} ${currency}`);
+      lines.push(`📈 Profit: ${(profitByCurrency[currency] || 0).toLocaleString()} ${currency}`);
+    });
+    lines.push(`\n🛒 Total Sales: ${data.sales.length}`);
+    lines.push(`📦 Items Tracked: ${data.items.length}`);
+    return lines.join('\n');
+  }, [data]);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Reports & Forecasting"
         description="Generate PDF reports and get AI-powered sales predictions"
-      />
+      >
+        <ShareButtons text={profitSummaryText} />
+      </PageHeader>
 
       {/* PDF Reports */}
       <div className="grid gap-4 sm:grid-cols-3">
