@@ -14,7 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { Package, Calculator, ArrowRight, ChevronsUpDown, Check, Plus, Upload, X, DollarSign, Loader2 } from 'lucide-react';
+import { Package, Calculator, ArrowRight, ChevronsUpDown, Check, Plus, Upload, X, DollarSign, Loader2, Link as LinkIcon } from 'lucide-react';
 import type { CurrencyUnit } from '@/types/inventory';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
