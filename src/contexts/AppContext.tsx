@@ -544,13 +544,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await fetchData();
   }, [user, fetchData]);
 
-  // Delete inventory entry
+  // Soft delete inventory entry (set record_status to 'deleted')
   const deleteInventoryEntry = useCallback(async (entryId: string) => {
     if (!user) throw new Error('Not authenticated');
     
     const { error } = await supabase
       .from('inventory_entries')
-      .delete()
+      .update({ record_status: 'deleted' })
       .eq('id', entryId);
     
     if (error) throw error;
