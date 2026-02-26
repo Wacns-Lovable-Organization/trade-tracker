@@ -157,10 +157,16 @@ export default function DeletedRecords() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Deleted Records"
-        description={`${allRecords.length} soft-deleted records available for review or restoration`}
-      />
+      <div className="flex items-center justify-between">
+        <PageHeader
+          title="Deleted Records"
+          description={`${allRecords.length} soft-deleted records available for review or restoration`}
+        />
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={exportToCsv}>
+          <Download className="w-4 h-4" />
+          Export CSV
+        </Button>
+      </div>
 
       {/* Filter & Bulk Actions */}
       <div className="flex items-center gap-3 flex-wrap">
