@@ -137,11 +137,21 @@ export default function DeletedRecords() {
           </SelectContent>
         </Select>
 
-        {records.length > 0 && (
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {filteredRecords.length > 0 && (
           <div className="flex items-center gap-2 ml-auto">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={toggleSelectAll}>
               <CheckSquare className="w-4 h-4" />
-              {selectedIds.size === records.length ? 'Deselect All' : 'Select All'}
+              {selectedIds.size === filteredRecords.length ? 'Deselect All' : 'Select All'}
             </Button>
             {selectedIds.size > 0 && (
               <>
