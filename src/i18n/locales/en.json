@@ -13,7 +13,10 @@
     "deletedRecords": "Deleted Records",
     "settings": "Settings",
     "adminPanel": "Admin Panel",
-    "tradeBoard": "Trade Board"
+    "tradeBoard": "Trade Board",
+    "goals": "Goals",
+    "notes": "Notes",
+    "worlds": "Worlds"
   },
   "common": {
     "save": "Save",

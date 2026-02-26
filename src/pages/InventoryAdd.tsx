@@ -19,6 +19,8 @@ import type { CurrencyUnit } from '@/types/inventory';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useInventoryTemplates } from '@/hooks/useInventoryTemplates';
+import { TemplateList } from '@/components/inventory/TemplateList';
 
 const currencyOptions: { value: CurrencyUnit; label: string }[] = [
   { value: 'WL', label: 'World Lock (WL)' },
@@ -32,6 +34,7 @@ export default function InventoryAdd() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data, addInventoryEntry, addItemWithInventoryEntry, updateItemImage } = useApp();
+  const { templates, addTemplate, deleteTemplate } = useInventoryTemplates();
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [itemName, setItemName] = useState('');
@@ -286,6 +289,25 @@ export default function InventoryAdd() {
       <PageHeader
         title="Add Inventory"
         description="Record a new purchase to your inventory"
+      />
+
+      {/* Quick Restock Templates */}
+      <TemplateList
+        templates={templates}
+        onSelect={(t) => {
+          if (t.item_id) {
+            setSelectedItemId(t.item_id);
+          } else {
+            setSelectedItemId('__new__');
+          }
+          setItemName(t.item_name);
+          if (t.category_id) setCategoryId(t.category_id);
+          setQuantityBought(t.default_quantity.toString());
+          setUnitCost(t.default_unit_cost.toString());
+          setCurrencyUnit(t.default_currency_unit as CurrencyUnit);
+          setPriceInputMode('unit');
+        }}
+        onDelete={(id) => deleteTemplate(id)}
       />
 
       <form onSubmit={handleSubmit}>
@@ -710,6 +732,28 @@ export default function InventoryAdd() {
                   )}
                   Add to Inventory
                 </Button>
+
+                {itemName.trim() && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => {
+                      addTemplate({
+                        template_name: itemName.trim(),
+                        item_id: selectedItemId && selectedItemId !== '__new__' ? selectedItemId : null,
+                        item_name: itemName.trim(),
+                        category_id: categoryId || null,
+                        default_quantity: parseInt(quantityBought) || 1,
+                        default_unit_cost: calculatedUnitCost,
+                        default_currency_unit: currencyUnit,
+                      });
+                    }}
+                  >
+                    Save as Template
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>

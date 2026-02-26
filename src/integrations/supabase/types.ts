@@ -334,6 +334,51 @@ export type Database = {
         }
         Relationships: []
       }
+      goals: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          currency_unit: string
+          current_value: number
+          deadline: string | null
+          goal_type: string
+          id: string
+          is_completed: boolean
+          target_value: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          currency_unit?: string
+          current_value?: number
+          deadline?: string | null
+          goal_type?: string
+          id?: string
+          is_completed?: boolean
+          target_value: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          currency_unit?: string
+          current_value?: number
+          deadline?: string | null
+          goal_type?: string
+          id?: string
+          is_completed?: boolean
+          target_value?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       inventory_entries: {
         Row: {
           bought_at: string
@@ -393,6 +438,45 @@ export type Database = {
           },
         ]
       }
+      inventory_templates: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          default_currency_unit: string
+          default_quantity: number
+          default_unit_cost: number
+          id: string
+          item_id: string | null
+          item_name: string
+          template_name: string
+          user_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          default_currency_unit?: string
+          default_quantity?: number
+          default_unit_cost?: number
+          id?: string
+          item_id?: string | null
+          item_name: string
+          template_name: string
+          user_id: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          default_currency_unit?: string
+          default_quantity?: number
+          default_unit_cost?: number
+          id?: string
+          item_id?: string | null
+          item_name?: string
+          template_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       items: {
         Row: {
           category_id: string | null
@@ -436,6 +520,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notes: {
+        Row: {
+          color: string
+          content: string
+          created_at: string
+          id: string
+          is_pinned: boolean
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -716,6 +836,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      saved_worlds: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_favorite: boolean
+          last_visited_at: string | null
+          notes: string | null
+          owner_grow_id: string | null
+          updated_at: string
+          user_id: string
+          world_name: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          last_visited_at?: string | null
+          notes?: string | null
+          owner_grow_id?: string | null
+          updated_at?: string
+          user_id: string
+          world_name: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          last_visited_at?: string | null
+          notes?: string | null
+          owner_grow_id?: string | null
+          updated_at?: string
+          user_id?: string
+          world_name?: string
+        }
+        Relationships: []
       }
       shared_snapshots: {
         Row: {

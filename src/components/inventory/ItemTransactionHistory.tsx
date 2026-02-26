@@ -10,7 +10,8 @@ import { ClickableCurrencyDisplay, ClickableProfitDisplay } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Package, Calendar, ArrowDownCircle, ArrowUpCircle, Pencil, Trash2, X, Check, DollarSign, Percent, ImagePlus, Camera } from 'lucide-react';
+import { Package, Calendar, ArrowDownCircle, ArrowUpCircle, Pencil, Trash2, X, Check, DollarSign, Percent, ImagePlus, Camera, TrendingUp } from 'lucide-react';
+import { PriceHistoryChart } from '@/components/inventory/PriceHistoryChart';
 import { useApp, type InventoryEntry, type Sale, type Item } from '@/contexts/AppContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -268,7 +269,7 @@ export function ItemTransactionHistory({
         )}
 
         <Tabs defaultValue="purchases" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="purchases" className="gap-2">
               <ArrowDownCircle className="w-4 h-4" />
               Purchases ({itemEntries.length})
@@ -276,6 +277,10 @@ export function ItemTransactionHistory({
             <TabsTrigger value="sales" className="gap-2">
               <ArrowUpCircle className="w-4 h-4" />
               Sales ({itemSales.length})
+            </TabsTrigger>
+            <TabsTrigger value="trends" className="gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Trends
             </TabsTrigger>
           </TabsList>
 
@@ -533,6 +538,16 @@ export function ItemTransactionHistory({
                 </div>
               )}
             </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="trends">
+            <div className="py-2">
+              <PriceHistoryChart
+                itemId={item.id}
+                inventoryEntries={inventoryEntries}
+                sales={sales}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </DialogContent>
