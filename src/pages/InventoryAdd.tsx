@@ -732,6 +732,28 @@ export default function InventoryAdd() {
                   )}
                   Add to Inventory
                 </Button>
+
+                {itemName.trim() && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => {
+                      addTemplate({
+                        template_name: itemName.trim(),
+                        item_id: selectedItemId && selectedItemId !== '__new__' ? selectedItemId : null,
+                        item_name: itemName.trim(),
+                        category_id: categoryId || null,
+                        default_quantity: parseInt(quantityBought) || 1,
+                        default_unit_cost: calculatedUnitCost,
+                        default_currency_unit: currencyUnit,
+                      });
+                    }}
+                  >
+                    Save as Template
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>
