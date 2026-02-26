@@ -19,6 +19,8 @@ import type { CurrencyUnit } from '@/types/inventory';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useInventoryTemplates } from '@/hooks/useInventoryTemplates';
+import { TemplateList } from '@/components/inventory/TemplateList';
 
 const currencyOptions: { value: CurrencyUnit; label: string }[] = [
   { value: 'WL', label: 'World Lock (WL)' },
