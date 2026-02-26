@@ -1,24 +1,29 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Plus, Package, Search, Filter, Ban } from 'lucide-react';
+import { Plus, Package, Search, Filter, Ban, Share2, Loader2 } from 'lucide-react';
 import { GroupedItemCard, type GroupedItem } from '@/components/inventory/GroupedItemCard';
 import { ItemTransactionHistory } from '@/components/inventory/ItemTransactionHistory';
 import type { CurrencyUnit } from '@/types/inventory';
+import { toast } from 'sonner';
 
 export default function InventoryList() {
   const { data } = useApp();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'OPEN' | 'CLOSED'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [itemTypeFilter, setItemTypeFilter] = useState<'all' | 'resellable' | 'cost-only'>('all');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<typeof data.items[0] | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   // Group inventory entries by item - using lifetime totals
   const groupedItems = useMemo(() => {
@@ -90,18 +95,62 @@ export default function InventoryList() {
   const totalEntries = data.inventoryEntries.length;
   const totalItems = new Set(data.inventoryEntries.map(e => e.itemId)).size;
 
+  const handleShareInventory = async () => {
+    if (!user || filteredItems.length === 0) return;
+    setIsSharing(true);
+    try {
+      const snapshotData = filteredItems.map(item => ({
+        name: item.name,
+        quantity: item.remainingQty,
+        unitCost: item.totalPurchasedQty > 0 ? Math.round(item.lifetimeTotalCost / item.totalPurchasedQty) : 0,
+        currency: item.currency,
+        category: item.categoryName,
+      }));
+
+      const { data: snapshot, error } = await supabase
+        .from('shared_snapshots')
+        .insert({
+          user_id: user.id,
+          snapshot_data: snapshotData,
+          title: `Inventory (${filteredItems.length} items)`,
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      const shareUrl = `${window.location.origin}/share/${snapshot.id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Share link copied to clipboard!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create snapshot');
+    }
+    setIsSharing(false);
+  };
+
   return (
     <div>
       <PageHeader
         title="Inventory"
         description={`${totalItems} items • ${totalEntries} entries`}
       >
-        <Button asChild className="gap-2">
-          <Link to="/inventory/add">
-            <Plus className="w-4 h-4" />
-            Add Entry
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleShareInventory}
+            disabled={isSharing || filteredItems.length === 0}
+          >
+            {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+            Share
+          </Button>
+          <Button asChild className="gap-2">
+            <Link to="/inventory/add">
+              <Plus className="w-4 h-4" />
+              Add Entry
+            </Link>
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Filters */}
