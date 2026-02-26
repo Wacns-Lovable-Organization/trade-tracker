@@ -317,7 +317,7 @@ export function CsvImportExport() {
             currency_unit: currency,
             expense_date: record.expense_date || new Date().toISOString().split('T')[0],
             is_recurring: record.is_recurring?.toLowerCase() === 'true',
-            notes: record.notes || null,
+            notes: record.notes || undefined,
           });
           successCount++;
         } catch {
