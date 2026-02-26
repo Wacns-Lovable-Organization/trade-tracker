@@ -34,6 +34,7 @@ export default function InventoryAdd() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data, addInventoryEntry, addItemWithInventoryEntry, updateItemImage } = useApp();
+  const { templates, addTemplate, deleteTemplate } = useInventoryTemplates();
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [itemName, setItemName] = useState('');
