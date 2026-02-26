@@ -14,6 +14,7 @@ export interface UserSettings {
   theme: string;
   language: string;
   default_currency_display: CurrencyDisplayMode;
+  discord_webhook_url: string | null;
   created_at: string;
   updated_at: string;
 }
