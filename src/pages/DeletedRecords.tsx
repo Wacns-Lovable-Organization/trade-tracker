@@ -33,7 +33,8 @@ import {
   CheckSquare,
   Search,
   CalendarIcon,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
