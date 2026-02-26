@@ -244,13 +244,16 @@ export default function DeletedRecords() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmAction?.action === 'restore' ? 'Restore Record' : 'Permanently Delete'}
+              {confirmAction?.action === 'restore' ? 'Restore Record(s)' : 'Permanently Delete'}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmAction?.action === 'restore' 
-                ? `Are you sure you want to restore "${confirmAction.record.name}"? It will become active again.`
-                : `Are you sure you want to permanently delete "${confirmAction?.record.name}"? This action cannot be undone.`
-              }
+              {(() => {
+                const count = confirmAction?.records?.length || 1;
+                const label = count > 1 ? `${count} records` : `"${confirmAction?.record?.name || confirmAction?.records?.[0]?.name}"`;
+                return confirmAction?.action === 'restore'
+                  ? `Are you sure you want to restore ${label}? ${count > 1 ? 'They' : 'It'} will become active again.`
+                  : `Are you sure you want to permanently delete ${label}? This action cannot be undone.`;
+              })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
