@@ -113,9 +113,9 @@ export default function DeletedRecords() {
         description={`${allRecords.length} soft-deleted records available for review or restoration`}
       />
 
-      {/* Filter */}
-      <div className="flex items-center gap-3">
-        <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+      {/* Filter & Bulk Actions */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Select value={filter} onValueChange={(v) => { setFilter(v as typeof filter); setSelectedIds(new Set()); }}>
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
@@ -127,6 +127,37 @@ export default function DeletedRecords() {
             <SelectItem value="expense">Expenses ({counts.expense})</SelectItem>
           </SelectContent>
         </Select>
+
+        {records.length > 0 && (
+          <div className="flex items-center gap-2 ml-auto">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={toggleSelectAll}>
+              <CheckSquare className="w-4 h-4" />
+              {selectedIds.size === records.length ? 'Deselect All' : 'Select All'}
+            </Button>
+            {selectedIds.size > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setConfirmAction({ records: selectedRecords, action: 'restore' })}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Restore ({selectedIds.size})
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setConfirmAction({ records: selectedRecords, action: 'delete' })}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete ({selectedIds.size})
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Records List */}
