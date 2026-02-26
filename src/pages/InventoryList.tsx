@@ -33,6 +33,10 @@ export default function InventoryList() {
       if (statusFilter !== 'all' && entry.status !== statusFilter) return;
       if (categoryFilter !== 'all' && entry.snapshotCategoryId !== categoryFilter) return;
 
+      // Apply item type filter
+      if (itemTypeFilter === 'cost-only' && !item.isCostOnly) return;
+      if (itemTypeFilter === 'resellable' && item.isCostOnly) return;
+
       const existing = itemMap.get(item.id);
       const category = data.categories.find(c => c.id === entry.snapshotCategoryId);
 
