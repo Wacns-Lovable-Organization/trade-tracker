@@ -6,13 +6,16 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { usePriceAlerts, PriceAlert } from '@/hooks/usePriceAlerts';
-import { Bell, Plus, Trash2, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useDiscordWebhook } from '@/hooks/useDiscordWebhook';
+import { Bell, Plus, Trash2, Loader2, Eye, EyeOff, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function PriceAlertPanel() {
   const { alerts, isLoading, createAlert, deleteAlert, toggleAlert } = usePriceAlerts();
+  const { isConfigured: discordEnabled } = useDiscordWebhook();
   const [showCreate, setShowCreate] = useState(false);
   const [itemName, setItemName] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
