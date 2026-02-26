@@ -6,13 +6,16 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { usePriceAlerts, PriceAlert } from '@/hooks/usePriceAlerts';
-import { Bell, Plus, Trash2, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useDiscordWebhook } from '@/hooks/useDiscordWebhook';
+import { Bell, Plus, Trash2, Loader2, Eye, EyeOff, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function PriceAlertPanel() {
   const { alerts, isLoading, createAlert, deleteAlert, toggleAlert } = usePriceAlerts();
+  const { isConfigured: discordEnabled } = useDiscordWebhook();
   const [showCreate, setShowCreate] = useState(false);
   const [itemName, setItemName] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
@@ -65,6 +68,21 @@ export function PriceAlertPanel() {
           <CardTitle className="text-base flex items-center gap-2">
             <Bell className="w-4 h-4 text-primary" />
             Price Alerts
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`inline-flex items-center gap-1 text-xs font-normal px-1.5 py-0.5 rounded-full ${discordEnabled ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                    <MessageCircle className="w-3 h-3" />
+                    {discordEnabled ? 'Discord ON' : 'Discord OFF'}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {discordEnabled
+                    ? 'Price alerts will also be sent to your Discord channel'
+                    : 'Set up a Discord webhook in Settings to receive alerts in Discord'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardTitle>
           <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>
             <Plus className="w-3 h-3 mr-1" />
