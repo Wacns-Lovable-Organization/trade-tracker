@@ -14,6 +14,7 @@ export interface UserSettings {
   theme: string;
   language: string;
   default_currency_display: CurrencyDisplayMode;
+  discord_webhook_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +46,7 @@ export function useUserSettings() {
         setSettings({
           ...data,
           default_currency_display: (data.default_currency_display || 'original') as CurrencyDisplayMode,
+          discord_webhook_url: data.discord_webhook_url || null,
         });
       } else {
         // Create default settings if none exist
@@ -69,6 +71,7 @@ export function useUserSettings() {
           setSettings({
             ...newSettings,
             default_currency_display: (newSettings.default_currency_display || 'original') as CurrencyDisplayMode,
+            discord_webhook_url: newSettings.discord_webhook_url || null,
           });
         }
       }
@@ -99,6 +102,7 @@ export function useUserSettings() {
         setSettings({
           ...data,
           default_currency_display: (data.default_currency_display || 'original') as CurrencyDisplayMode,
+          discord_webhook_url: data.discord_webhook_url || null,
         });
       }
       return { data, error: null };

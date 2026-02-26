@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Info, Cloud, Bell, AlertTriangle, Loader2, Globe, Coins } from 'lucide-react';
 import { CsvImportExport } from '@/components/settings/CsvImportExport';
+import { IntegrationsCard } from '@/components/settings/IntegrationsCard';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { FeatureGate } from '@/components/FeatureGate';
 import { toast } from 'sonner';
@@ -141,6 +142,9 @@ export default function Settings() {
             )}
           </CardContent>
         </Card>
+
+        {/* Integrations */}
+        <IntegrationsCard />
 
         {/* Cloud Sync Info */}
         <Card className="animate-fade-in border-primary/30" style={{ animationDelay: '100ms' }}>
