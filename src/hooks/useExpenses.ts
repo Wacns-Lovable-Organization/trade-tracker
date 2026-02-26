@@ -116,7 +116,7 @@ export function useExpenses() {
     try {
       const { error } = await supabase
         .from('expenses')
-        .delete()
+        .update({ record_status: 'deleted' })
         .eq('id', id);
 
       if (error) throw error;
