@@ -68,6 +68,9 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.reports', href: '/reports', icon: FileText },
   { labelKey: 'nav.deletedRecords', href: '/deleted', icon: Archive },
   { labelKey: 'nav.tradeBoard', href: '/trades', icon: Megaphone, featureKey: 'trade_board' },
+  { labelKey: 'nav.goals', href: '/goals', icon: Target, featureKey: 'goals_tracker' },
+  { labelKey: 'nav.notes', href: '/notes', icon: StickyNote, featureKey: 'notes_journal' },
+  { labelKey: 'nav.worlds', href: '/worlds', icon: Globe, featureKey: 'world_directory' },
   { labelKey: 'nav.settings', href: '/settings', icon: Settings },
   { labelKey: 'nav.adminPanel', href: '/admin', icon: Shield, adminOnly: true },
 ];

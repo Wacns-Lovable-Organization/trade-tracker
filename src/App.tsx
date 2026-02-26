@@ -110,6 +110,21 @@ const App = () => (
                                     <TradeBoard />
                                   </FeatureGate>
                                 } />
+                                <Route path="/goals" element={
+                                  <FeatureGate featureKey="goals_tracker">
+                                    <Goals />
+                                  </FeatureGate>
+                                } />
+                                <Route path="/notes" element={
+                                  <FeatureGate featureKey="notes_journal">
+                                    <Notes />
+                                  </FeatureGate>
+                                } />
+                                <Route path="/worlds" element={
+                                  <FeatureGate featureKey="world_directory">
+                                    <Worlds />
+                                  </FeatureGate>
+                                } />
                                 <Route path="/profile" element={<Profile />} />
                                 <Route path="*" element={<NotFound />} />
                               </Routes>
