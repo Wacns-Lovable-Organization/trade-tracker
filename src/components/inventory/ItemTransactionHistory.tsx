@@ -268,7 +268,7 @@ export function ItemTransactionHistory({
         )}
 
         <Tabs defaultValue="purchases" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="purchases" className="gap-2">
               <ArrowDownCircle className="w-4 h-4" />
               Purchases ({itemEntries.length})
@@ -276,6 +276,10 @@ export function ItemTransactionHistory({
             <TabsTrigger value="sales" className="gap-2">
               <ArrowUpCircle className="w-4 h-4" />
               Sales ({itemSales.length})
+            </TabsTrigger>
+            <TabsTrigger value="trends" className="gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Trends
             </TabsTrigger>
           </TabsList>
 
