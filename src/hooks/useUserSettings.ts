@@ -71,6 +71,7 @@ export function useUserSettings() {
           setSettings({
             ...newSettings,
             default_currency_display: (newSettings.default_currency_display || 'original') as CurrencyDisplayMode,
+            discord_webhook_url: newSettings.discord_webhook_url || null,
           });
         }
       }
