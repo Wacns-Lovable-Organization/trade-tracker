@@ -16,6 +16,7 @@ export default function InventoryList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'OPEN' | 'CLOSED'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [itemTypeFilter, setItemTypeFilter] = useState<'all' | 'resellable' | 'cost-only'>('all');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<typeof data.items[0] | null>(null);
 
