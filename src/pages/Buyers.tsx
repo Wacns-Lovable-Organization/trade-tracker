@@ -16,6 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { CurrencyDisplayWithPreference } from '@/components/ui/CurrencyDisplayWithPreference';
 import { toast } from 'sonner';
 import { Plus, Trash2, ChevronDown, ChevronRight, Package, Globe, User, Loader2, Phone, Mail, MessageCircle } from 'lucide-react';
+import { SupplierRatingInline } from '@/components/ratings/SupplierRatingInline';
 import type { CurrencyUnit } from '@/types/inventory';
 
 const SOCIAL_PLATFORMS = [
