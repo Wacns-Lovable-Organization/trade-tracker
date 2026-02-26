@@ -142,6 +142,17 @@ export default function InventoryList() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={itemTypeFilter} onValueChange={(v) => setItemTypeFilter(v as 'all' | 'resellable' | 'cost-only')}>
+                <SelectTrigger className="w-36">
+                  <Ban className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="resellable">Resellable</SelectItem>
+                  <SelectItem value="cost-only">Cost Only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
