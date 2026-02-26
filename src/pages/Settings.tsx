@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Info, Cloud, Bell, AlertTriangle, Loader2, Globe, Coins } from 'lucide-react';
 import { CsvImportExport } from '@/components/settings/CsvImportExport';
 import { IntegrationsCard } from '@/components/settings/IntegrationsCard';
+import { SeedDataButton } from '@/components/settings/SeedDataButton';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { FeatureGate } from '@/components/FeatureGate';
 import { toast } from 'sonner';
