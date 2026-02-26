@@ -9,8 +9,8 @@ export function useDiscordWebhook() {
     eventType: string,
     data: Record<string, any>
   ) => {
-    const webhookUrl = (settings as any)?.discord_webhook_url;
-    if (!webhookUrl) return; // silently skip if no webhook configured
+    const webhookUrl = settings?.discord_webhook_url;
+    if (!webhookUrl) return;
 
     try {
       await supabase.functions.invoke('send-discord-webhook', {
