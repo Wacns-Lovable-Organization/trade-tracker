@@ -48,23 +48,50 @@ export default function DeletedRecords() {
     permanentlyDelete 
   } = useDeletedRecords();
   
-  const [confirmAction, setConfirmAction] = useState<{ record: DeletedRecord; action: 'restore' | 'delete' } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ record?: DeletedRecord; records?: DeletedRecord[]; action: 'restore' | 'delete' } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === records.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(records.map(r => `${r.type}-${r.id}`)));
+    }
+  };
+
+  const selectedRecords = useMemo(() => 
+    records.filter(r => selectedIds.has(`${r.type}-${r.id}`)),
+    [records, selectedIds]
+  );
 
   const handleAction = async () => {
     if (!confirmAction) return;
     
     setActionLoading(true);
     try {
-      if (confirmAction.action === 'restore') {
-        await restoreRecord(confirmAction.record);
-        toast.success(`${confirmAction.record.name} restored successfully`);
-      } else {
-        await permanentlyDelete(confirmAction.record);
-        toast.success(`${confirmAction.record.name} permanently deleted`);
+      const targets = confirmAction.records || (confirmAction.record ? [confirmAction.record] : []);
+      for (const rec of targets) {
+        if (confirmAction.action === 'restore') {
+          await restoreRecord(rec);
+        } else {
+          await permanentlyDelete(rec);
+        }
       }
+      const count = targets.length;
+      const label = count === 1 ? targets[0].name : `${count} records`;
+      toast.success(`${label} ${confirmAction.action === 'restore' ? 'restored' : 'permanently deleted'}`);
+      setSelectedIds(new Set());
     } catch (error) {
-      toast.error(`Failed to ${confirmAction.action} record`);
+      toast.error(`Failed to ${confirmAction.action} records`);
     } finally {
       setActionLoading(false);
       setConfirmAction(null);
