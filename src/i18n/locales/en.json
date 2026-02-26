@@ -12,7 +12,8 @@
     "reports": "Reports",
     "deletedRecords": "Deleted Records",
     "settings": "Settings",
-    "adminPanel": "Admin Panel"
+    "adminPanel": "Admin Panel",
+    "tradeBoard": "Trade Board"
   },
   "common": {
     "save": "Save",
