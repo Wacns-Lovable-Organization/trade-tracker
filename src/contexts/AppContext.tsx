@@ -340,9 +340,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       
       const [categoriesRes, itemsRes, entriesRes, salesRes] = await Promise.all([
         supabase.from('categories').select('*').eq('user_id', userIdFilter).order('created_at', { ascending: true }),
-        supabase.from('items').select('*').eq('user_id', userIdFilter).order('created_at', { ascending: true }),
-        supabase.from('inventory_entries').select('*').eq('user_id', userIdFilter).order('bought_at', { ascending: true }),
-        supabase.from('sales').select('*').eq('user_id', userIdFilter).order('sold_at', { ascending: false }),
+        supabase.from('items').select('*').eq('user_id', userIdFilter).eq('record_status', 'active').order('created_at', { ascending: true }),
+        supabase.from('inventory_entries').select('*').eq('user_id', userIdFilter).eq('record_status', 'active').order('bought_at', { ascending: true }),
+        supabase.from('sales').select('*').eq('user_id', userIdFilter).eq('record_status', 'active').order('sold_at', { ascending: false }),
       ]);
 
       setCategories((categoriesRes.data || []) as DbCategory[]);
