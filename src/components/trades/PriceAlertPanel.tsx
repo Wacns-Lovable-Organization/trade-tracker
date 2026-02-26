@@ -80,6 +80,7 @@ export function PriceAlertPanel() {
                     <MessageCircle className="w-3 h-3" />
                     {discordEnabled ? 'Discord ON' : 'Discord OFF'}
                   </span>
+                </TooltipTrigger>
                 <TooltipContent>
                   {discordEnabled
                     ? 'Price alerts will also be sent to your Discord channel'
