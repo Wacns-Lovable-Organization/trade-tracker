@@ -546,6 +546,7 @@ export default function Suppliers() {
                         <Badge variant="secondary">
                           {supplier.items.length} item{supplier.items.length !== 1 ? 's' : ''}
                         </Badge>
+                        <SupplierRatingInline growId={supplier.grow_id} ratedType="supplier" />
                         <Button 
                           variant="ghost" 
                           size="icon" 

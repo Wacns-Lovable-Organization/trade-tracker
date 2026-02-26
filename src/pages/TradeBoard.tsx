@@ -128,6 +128,9 @@ export default function TradeBoard() {
             ))}
           </div>
         )}
+
+        {/* Price Alerts */}
+        <PriceAlertPanel />
       </div>
 
       <CreateTradePostDialog

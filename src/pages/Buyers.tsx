@@ -314,6 +314,7 @@ export default function Buyers() {
                       <Badge variant="secondary">
                         {buyer.items.length} item{buyer.items.length !== 1 ? 's' : ''}
                       </Badge>
+                      <SupplierRatingInline growId={buyer.grow_id} ratedType="buyer" />
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="icon" className="text-destructive">
