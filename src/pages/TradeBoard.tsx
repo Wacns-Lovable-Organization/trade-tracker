@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTradePosts } from '@/hooks/useTradePosts';
+import { usePriceAlerts } from '@/hooks/usePriceAlerts';
 import { TradePostCard } from '@/components/trades/TradePostCard';
 import { CreateTradePostDialog } from '@/components/trades/CreateTradePostDialog';
+import { PriceAlertPanel } from '@/components/trades/PriceAlertPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Search, Loader2, Megaphone } from 'lucide-react';
 import { toast } from 'sonner';
