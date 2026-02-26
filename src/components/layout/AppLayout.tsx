@@ -27,6 +27,9 @@ import {
   Package,
   Archive,
   Megaphone,
+  Target,
+  StickyNote,
+  Globe,
 } from 'lucide-react';
 import appLogo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
