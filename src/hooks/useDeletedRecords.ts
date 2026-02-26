@@ -94,42 +94,42 @@ export function useDeletedRecords() {
   }, [fetchDeleted]);
 
   const restoreRecord = useCallback(async (record: DeletedRecord) => {
-    const tableMap: Record<string, string> = {
+    const restoreInTable = async (table: 'inventory_entries' | 'sales' | 'items' | 'expenses', id: string) => {
+      const { error } = await supabase
+        .from(table)
+        .update({ record_status: 'active' })
+        .eq('id', id);
+      if (error) throw error;
+    };
+
+    const tableMap: Record<string, 'inventory_entries' | 'sales' | 'items' | 'expenses'> = {
       inventory: 'inventory_entries',
       sale: 'sales',
       item: 'items',
       expense: 'expenses',
     };
 
-    const table = tableMap[record.type];
-    if (!table) throw new Error('Unknown record type');
-
-    const { error } = await supabase
-      .from(table)
-      .update({ record_status: 'active' } as any)
-      .eq('id', record.id);
-
-    if (error) throw error;
+    await restoreInTable(tableMap[record.type], record.id);
     await fetchDeleted();
   }, [fetchDeleted]);
 
   const permanentlyDelete = useCallback(async (record: DeletedRecord) => {
-    const tableMap: Record<string, string> = {
+    const deleteFromTable = async (table: 'inventory_entries' | 'sales' | 'items' | 'expenses', id: string) => {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    };
+
+    const tableMap: Record<string, 'inventory_entries' | 'sales' | 'items' | 'expenses'> = {
       inventory: 'inventory_entries',
       sale: 'sales',
       item: 'items',
       expense: 'expenses',
     };
 
-    const table = tableMap[record.type];
-    if (!table) throw new Error('Unknown record type');
-
-    const { error } = await supabase
-      .from(table)
-      .delete()
-      .eq('id', record.id);
-
-    if (error) throw error;
+    await deleteFromTable(tableMap[record.type], record.id);
     await fetchDeleted();
   }, [fetchDeleted]);
 
