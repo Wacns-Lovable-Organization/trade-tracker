@@ -554,6 +554,42 @@ export type Database = {
         }
         Relationships: []
       }
+      price_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          currency_unit: string
+          id: string
+          is_active: boolean
+          item_name: string
+          last_triggered_at: string | null
+          target_price: number
+          user_id: string
+        }
+        Insert: {
+          alert_type?: string
+          created_at?: string
+          currency_unit?: string
+          id?: string
+          is_active?: boolean
+          item_name: string
+          last_triggered_at?: string | null
+          target_price: number
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          currency_unit?: string
+          id?: string
+          is_active?: boolean
+          item_name?: string
+          last_triggered_at?: string | null
+          target_price?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -873,6 +909,39 @@ export type Database = {
           updated_at?: string
           user_id?: string
           world?: string
+        }
+        Relationships: []
+      }
+      trade_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          rated_grow_id: string
+          rated_type: string
+          rater_user_id: string
+          rating: number
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rated_grow_id: string
+          rated_type?: string
+          rater_user_id: string
+          rating: number
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rated_grow_id?: string
+          rated_type?: string
+          rater_user_id?: string
+          rating?: number
+          updated_at?: string
         }
         Relationships: []
       }

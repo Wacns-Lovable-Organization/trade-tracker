@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTradePosts } from '@/hooks/useTradePosts';
+import { usePriceAlerts } from '@/hooks/usePriceAlerts';
 import { TradePostCard } from '@/components/trades/TradePostCard';
 import { CreateTradePostDialog } from '@/components/trades/CreateTradePostDialog';
+import { PriceAlertPanel } from '@/components/trades/PriceAlertPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Search, Loader2, Megaphone } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,9 +16,22 @@ import { toast } from 'sonner';
 export default function TradeBoard() {
   const { user } = useAuth();
   const { posts, isLoading, createPost, markFulfilled, deletePost } = useTradePosts();
+  const { checkAlerts } = usePriceAlerts();
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+
+  // Check price alerts when posts change
+  useEffect(() => {
+    if (posts.length === 0) return;
+    const latestPost = posts[0];
+    if (!latestPost.price_per_unit) return;
+    
+    const triggered = checkAlerts(latestPost.item_name, latestPost.price_per_unit, latestPost.currency_unit);
+    triggered.forEach(alert => {
+      toast.info(`🔔 Price Alert: ${alert.item_name} posted at ${latestPost.price_per_unit} ${latestPost.currency_unit} (your target: ${alert.alert_type === 'below' ? '≤' : '≥'} ${alert.target_price} ${alert.currency_unit})`);
+    });
+  }, [posts.length]); // Only check on new posts
 
   const filteredPosts = useMemo(() => {
     return posts.filter(p => {
@@ -113,6 +128,9 @@ export default function TradeBoard() {
             ))}
           </div>
         )}
+
+        {/* Price Alerts */}
+        <PriceAlertPanel />
       </div>
 
       <CreateTradePostDialog

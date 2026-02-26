@@ -16,6 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { CurrencyDisplayWithPreference } from '@/components/ui/CurrencyDisplayWithPreference';
 import { toast } from 'sonner';
 import { Plus, Trash2, ChevronDown, ChevronRight, Package, Globe, User, Loader2, Phone, Mail, MessageCircle } from 'lucide-react';
+import { SupplierRatingInline } from '@/components/ratings/SupplierRatingInline';
 import type { CurrencyUnit } from '@/types/inventory';
 
 const SOCIAL_PLATFORMS = [
@@ -313,6 +314,7 @@ export default function Buyers() {
                       <Badge variant="secondary">
                         {buyer.items.length} item{buyer.items.length !== 1 ? 's' : ''}
                       </Badge>
+                      <SupplierRatingInline growId={buyer.grow_id} ratedType="buyer" />
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="icon" className="text-destructive">

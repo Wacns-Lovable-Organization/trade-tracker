@@ -20,6 +20,7 @@ import {
   Plus, Trash2, Edit, ChevronDown, ChevronRight, Package, Globe, User, Loader2,
   Phone, Mail, MessageCircle, Instagram, Facebook, Twitter, Youtube
 } from 'lucide-react';
+import { SupplierRatingInline } from '@/components/ratings/SupplierRatingInline';
 import type { CurrencyUnit } from '@/types/inventory';
 
 // Social media icons for display
@@ -545,6 +546,7 @@ export default function Suppliers() {
                         <Badge variant="secondary">
                           {supplier.items.length} item{supplier.items.length !== 1 ? 's' : ''}
                         </Badge>
+                        <SupplierRatingInline growId={supplier.grow_id} ratedType="supplier" />
                         <Button 
                           variant="ghost" 
                           size="icon" 
