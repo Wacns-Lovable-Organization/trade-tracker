@@ -68,6 +68,21 @@ export function PriceAlertPanel() {
           <CardTitle className="text-base flex items-center gap-2">
             <Bell className="w-4 h-4 text-primary" />
             Price Alerts
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`inline-flex items-center gap-1 text-xs font-normal px-1.5 py-0.5 rounded-full ${discordEnabled ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                    <MessageCircle className="w-3 h-3" />
+                    {discordEnabled ? 'Discord ON' : 'Discord OFF'}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {discordEnabled
+                    ? 'Price alerts will also be sent to your Discord channel'
+                    : 'Set up a Discord webhook in Settings to receive alerts in Discord'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardTitle>
           <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>
             <Plus className="w-3 h-3 mr-1" />
