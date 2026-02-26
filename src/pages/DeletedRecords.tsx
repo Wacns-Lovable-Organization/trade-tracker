@@ -184,19 +184,21 @@ export default function DeletedRecords() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
-      ) : records.length === 0 ? (
+      ) : filteredRecords.length === 0 ? (
         <div className="text-center py-12 animate-fade-in">
           <Archive className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
           <h3 className="text-lg font-medium mb-1">No deleted records</h3>
           <p className="text-muted-foreground">
-            {filter === 'all' 
-              ? 'Records you delete will appear here for review.' 
-              : `No deleted ${filter} records found.`}
+            {searchQuery
+              ? 'No records match your search.'
+              : filter === 'all' 
+                ? 'Records you delete will appear here for review.' 
+                : `No deleted ${filter} records found.`}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {records.map((record, index) => {
+          {filteredRecords.map((record, index) => {
             const config = typeConfig[record.type];
             const Icon = config.icon;
             
