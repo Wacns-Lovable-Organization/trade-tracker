@@ -155,3 +155,23 @@ export function getSalesCSVTemplate(): string {
   };
   return toCSV([sample], headers);
 }
+
+export function getCategoriesCSVTemplate(): string {
+  const headers = ['name'];
+  const sample = { name: 'Example Category' };
+  return toCSV([sample], headers);
+}
+
+export function getExpensesCSVTemplate(): string {
+  const headers = ['description', 'category', 'amount', 'currency', 'expense_date', 'is_recurring', 'notes'];
+  const sample = {
+    description: 'Office Supplies',
+    category: 'Operations',
+    amount: '100',
+    currency: 'WL',
+    expense_date: new Date().toISOString().split('T')[0],
+    is_recurring: 'false',
+    notes: 'Optional notes',
+  };
+  return toCSV([sample], headers);
+}
