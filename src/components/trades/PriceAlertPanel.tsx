@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 export function PriceAlertPanel() {
   const { alerts, isLoading, createAlert, deleteAlert, toggleAlert } = usePriceAlerts();
   const { isConfigured: discordEnabled } = useDiscordWebhook();
+  const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [itemName, setItemName] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
