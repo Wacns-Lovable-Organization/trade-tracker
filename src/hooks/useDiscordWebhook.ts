@@ -21,7 +21,7 @@ export function useDiscordWebhook() {
     }
   }, [settings]);
 
-  const isConfigured = Boolean((settings as any)?.discord_webhook_url);
+  const isConfigured = Boolean(settings?.discord_webhook_url);
 
   return { sendDiscordNotification, isConfigured };
 }

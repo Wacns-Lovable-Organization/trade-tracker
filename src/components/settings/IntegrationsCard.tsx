@@ -83,7 +83,7 @@ export function IntegrationsCard() {
     setIsTesting(false);
   };
 
-  const currentUrl = (settings as any)?.discord_webhook_url || '';
+  const currentUrl = settings?.discord_webhook_url || '';
   const hasChanges = webhookUrl !== currentUrl;
 
   return (
