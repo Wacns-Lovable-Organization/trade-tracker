@@ -19,6 +19,7 @@ import type { CurrencyUnit } from '@/types/inventory';
 import { SalesChart } from '@/components/dashboard/SalesChart';
 import { ProfitChart } from '@/components/dashboard/ProfitChart';
 import { TopItemsChart } from '@/components/dashboard/TopItemsChart';
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 
 export default function Dashboard() {
   const { data, calculateSaleProfit } = useApp();
