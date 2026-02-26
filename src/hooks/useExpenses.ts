@@ -49,6 +49,7 @@ export function useExpenses() {
         .from('expenses')
         .select('*')
         .eq('user_id', user.id)
+        .eq('record_status', 'active')
         .order('expense_date', { ascending: false });
 
       if (error) throw error;
