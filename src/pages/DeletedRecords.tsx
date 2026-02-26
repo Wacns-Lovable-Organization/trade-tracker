@@ -27,7 +27,8 @@ import {
   ShoppingCart,
   Archive,
   Loader2,
-  CheckSquare
+  CheckSquare,
+  Search
 } from 'lucide-react';
 import { format } from 'date-fns';
 
