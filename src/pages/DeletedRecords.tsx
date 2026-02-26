@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -18,6 +20,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { 
   Trash2, 
   RotateCcw, 
@@ -28,9 +31,11 @@ import {
   Archive,
   Loader2,
   CheckSquare,
-  Search
+  Search,
+  CalendarIcon,
+  X
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
 const typeConfig = {
   inventory: { label: 'Inventory', icon: ShoppingCart, color: 'bg-primary/10 text-primary' },
