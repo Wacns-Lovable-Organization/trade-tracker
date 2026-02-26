@@ -267,6 +267,7 @@ export type Database = {
           id: string
           is_recurring: boolean
           notes: string | null
+          record_status: string
           recurring_interval: string | null
           updated_at: string
           user_id: string
@@ -281,6 +282,7 @@ export type Database = {
           id?: string
           is_recurring?: boolean
           notes?: string | null
+          record_status?: string
           recurring_interval?: string | null
           updated_at?: string
           user_id: string
@@ -295,6 +297,7 @@ export type Database = {
           id?: string
           is_recurring?: boolean
           notes?: string | null
+          record_status?: string
           recurring_interval?: string | null
           updated_at?: string
           user_id?: string
@@ -340,6 +343,7 @@ export type Database = {
           item_id: string
           notes: string | null
           quantity_bought: number
+          record_status: string
           remaining_qty: number
           snapshot_category_id: string | null
           snapshot_name: string
@@ -355,6 +359,7 @@ export type Database = {
           item_id: string
           notes?: string | null
           quantity_bought: number
+          record_status?: string
           remaining_qty: number
           snapshot_category_id?: string | null
           snapshot_name: string
@@ -370,6 +375,7 @@ export type Database = {
           item_id?: string
           notes?: string | null
           quantity_bought?: number
+          record_status?: string
           remaining_qty?: number
           snapshot_category_id?: string | null
           snapshot_name?: string
@@ -396,6 +402,7 @@ export type Database = {
           is_cost_only: boolean
           low_stock_threshold: number | null
           name: string
+          record_status: string
           user_id: string
         }
         Insert: {
@@ -406,6 +413,7 @@ export type Database = {
           is_cost_only?: boolean
           low_stock_threshold?: number | null
           name: string
+          record_status?: string
           user_id: string
         }
         Update: {
@@ -416,6 +424,7 @@ export type Database = {
           is_cost_only?: boolean
           low_stock_threshold?: number | null
           name?: string
+          record_status?: string
           user_id?: string
         }
         Relationships: [
@@ -585,6 +594,7 @@ export type Database = {
           notes: string | null
           profit: number
           quantity_sold: number
+          record_status: string
           sale_price: number
           sold_at: string
           total_cost: number
@@ -599,6 +609,7 @@ export type Database = {
           notes?: string | null
           profit: number
           quantity_sold: number
+          record_status?: string
           sale_price: number
           sold_at?: string
           total_cost: number
@@ -613,6 +624,7 @@ export type Database = {
           notes?: string | null
           profit?: number
           quantity_sold?: number
+          record_status?: string
           sale_price?: number
           sold_at?: string
           total_cost?: number
