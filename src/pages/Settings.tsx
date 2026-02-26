@@ -143,6 +143,9 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* Integrations */}
+        <IntegrationsCard />
+
         {/* Cloud Sync Info */}
         <Card className="animate-fade-in border-primary/30" style={{ animationDelay: '100ms' }}>
           <CardHeader>

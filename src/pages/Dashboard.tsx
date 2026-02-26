@@ -334,6 +334,15 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Activity Feed */}
+      <div className="mt-6">
+        <ActivityFeed
+          sales={data.sales}
+          entries={data.inventoryEntries}
+          items={data.items}
+        />
+      </div>
+
       {/* Charts Section */}
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3 mt-6">
         <SalesChart 

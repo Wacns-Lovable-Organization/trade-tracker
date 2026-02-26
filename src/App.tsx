@@ -63,6 +63,7 @@ const App = () => (
                   <Routes>
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/install" element={<Install />} />
+                    <Route path="/share/:id" element={<SharedSnapshot />} />
                     <Route
                       path="/*"
                       element={
