@@ -68,7 +68,7 @@ export default function InventoryList() {
     });
 
     return Array.from(itemMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [data.inventoryEntries, data.items, data.categories, data.sales, statusFilter, categoryFilter]);
+  }, [data.inventoryEntries, data.items, data.categories, data.sales, statusFilter, categoryFilter, itemTypeFilter]);
 
   // Filter by search
   const filteredItems = useMemo(() => {
