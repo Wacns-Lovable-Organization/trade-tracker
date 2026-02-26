@@ -825,6 +825,57 @@ export type Database = {
         }
         Relationships: []
       }
+      trade_posts: {
+        Row: {
+          created_at: string
+          currency_unit: string
+          description: string | null
+          expires_at: string | null
+          grow_id: string
+          id: string
+          is_active: boolean
+          item_name: string
+          post_type: string
+          price_per_unit: number | null
+          quantity: number | null
+          updated_at: string
+          user_id: string
+          world: string
+        }
+        Insert: {
+          created_at?: string
+          currency_unit?: string
+          description?: string | null
+          expires_at?: string | null
+          grow_id: string
+          id?: string
+          is_active?: boolean
+          item_name: string
+          post_type?: string
+          price_per_unit?: number | null
+          quantity?: number | null
+          updated_at?: string
+          user_id: string
+          world: string
+        }
+        Update: {
+          created_at?: string
+          currency_unit?: string
+          description?: string | null
+          expires_at?: string | null
+          grow_id?: string
+          id?: string
+          is_active?: boolean
+          item_name?: string
+          post_type?: string
+          price_per_unit?: number | null
+          quantity?: number | null
+          updated_at?: string
+          user_id?: string
+          world?: string
+        }
+        Relationships: []
+      }
       user_devices: {
         Row: {
           browser: string | null

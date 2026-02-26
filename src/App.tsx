@@ -33,6 +33,7 @@ import Auth from "./pages/Auth";
 import Install from "./pages/Install";
 import DeletedRecords from "./pages/DeletedRecords";
 import SharedSnapshot from "./pages/SharedSnapshot";
+import TradeBoard from "./pages/TradeBoard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -101,6 +102,11 @@ const App = () => (
                                 } />
                                 <Route path="/reports" element={<Reports />} />
                                 <Route path="/deleted" element={<DeletedRecords />} />
+                                <Route path="/trades" element={
+                                  <FeatureGate featureKey="trade_board">
+                                    <TradeBoard />
+                                  </FeatureGate>
+                                } />
                                 <Route path="/profile" element={<Profile />} />
                                 <Route path="*" element={<NotFound />} />
                               </Routes>
