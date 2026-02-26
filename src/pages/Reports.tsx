@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { FileDown, TrendingUp, Package, DollarSign, Loader2, Brain, Sparkles, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { subDays, startOfMonth } from 'date-fns';
 import type { CurrencyUnit } from '@/types/inventory';
+import { CostBreakdownReport } from '@/components/reports/CostBreakdownReport';
 
 export default function Reports() {
   const { data } = useApp();
