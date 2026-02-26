@@ -49,6 +49,7 @@ export function useExpenses() {
         .from('expenses')
         .select('*')
         .eq('user_id', user.id)
+        .eq('record_status', 'active')
         .order('expense_date', { ascending: false });
 
       if (error) throw error;
@@ -115,7 +116,7 @@ export function useExpenses() {
     try {
       const { error } = await supabase
         .from('expenses')
-        .delete()
+        .update({ record_status: 'deleted' })
         .eq('id', id);
 
       if (error) throw error;

@@ -19,6 +19,20 @@ export interface CsvSaleRecord {
   sold_at: string;
 }
 
+export interface CsvCategoryRecord {
+  name: string;
+}
+
+export interface CsvExpenseRecord {
+  description: string;
+  category: string;
+  amount: number;
+  currency: string;
+  expense_date: string;
+  is_recurring: string;
+  notes: string;
+}
+
 // Convert array of objects to CSV string
 export function toCSV<T extends Record<string, unknown>>(data: T[], headers?: string[]): string {
   if (data.length === 0) return '';
@@ -138,6 +152,26 @@ export function getSalesCSVTemplate(): string {
     currency: 'WL',
     notes: 'Optional notes',
     sold_at: new Date().toISOString().split('T')[0],
+  };
+  return toCSV([sample], headers);
+}
+
+export function getCategoriesCSVTemplate(): string {
+  const headers = ['name'];
+  const sample = { name: 'Example Category' };
+  return toCSV([sample], headers);
+}
+
+export function getExpensesCSVTemplate(): string {
+  const headers = ['description', 'category', 'amount', 'currency', 'expense_date', 'is_recurring', 'notes'];
+  const sample = {
+    description: 'Office Supplies',
+    category: 'Operations',
+    amount: '100',
+    currency: 'WL',
+    expense_date: new Date().toISOString().split('T')[0],
+    is_recurring: 'false',
+    notes: 'Optional notes',
   };
   return toCSV([sample], headers);
 }

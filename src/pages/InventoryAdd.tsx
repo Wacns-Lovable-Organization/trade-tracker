@@ -14,7 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { Package, Calculator, ArrowRight, ChevronsUpDown, Check, Plus, Upload, X, DollarSign, Loader2 } from 'lucide-react';
+import { Package, Calculator, ArrowRight, ChevronsUpDown, Check, Plus, Upload, X, DollarSign, Loader2, Link as LinkIcon } from 'lucide-react';
 import type { CurrencyUnit } from '@/types/inventory';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +54,9 @@ export default function InventoryAdd() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [isDownloadingUrl, setIsDownloadingUrl] = useState(false);
+  const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filtered items for search
@@ -109,8 +112,33 @@ export default function InventoryAdd() {
   const removeImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setImageUrlInput('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  // Download image from URL via edge function
+  const handleImageFromUrl = async (itemId: string): Promise<string | null> => {
+    if (!imageUrlInput.trim()) return null;
+    
+    setIsDownloadingUrl(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      
+      const response = await supabase.functions.invoke('download-image', {
+        body: { imageUrl: imageUrlInput.trim(), itemId },
+      });
+      
+      if (response.error) throw new Error(response.error.message);
+      return response.data?.publicUrl || null;
+    } catch (error) {
+      console.error('Error downloading image from URL:', error);
+      toast.error('Failed to download image from URL');
+      return null;
+    } finally {
+      setIsDownloadingUrl(false);
     }
   };
 
@@ -203,6 +231,11 @@ export default function InventoryAdd() {
           if (imageUrl) {
             await updateItemImage(selectedItemId, imageUrl);
           }
+        } else if (imageInputMode === 'url' && imageUrlInput.trim()) {
+          const imageUrl = await handleImageFromUrl(selectedItemId);
+          if (imageUrl) {
+            await updateItemImage(selectedItemId, imageUrl);
+          }
         }
       } else {
         // This atomically creates the item (if needed) and inventory entry
@@ -222,6 +255,11 @@ export default function InventoryAdd() {
         // Upload image for new item
         if (imageFile && itemId) {
           const imageUrl = await uploadImage(itemId);
+          if (imageUrl) {
+            await updateItemImage(itemId, imageUrl);
+          }
+        } else if (imageInputMode === 'url' && imageUrlInput.trim() && itemId) {
+          const imageUrl = await handleImageFromUrl(itemId);
           if (imageUrl) {
             await updateItemImage(itemId, imageUrl);
           }
@@ -366,6 +404,36 @@ export default function InventoryAdd() {
                 {/* Item Image */}
                 <div className="space-y-2">
                   <Label>Item Image (Optional)</Label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex rounded-lg border border-border p-1 bg-muted/30">
+                      <button
+                        type="button"
+                        onClick={() => setImageInputMode('upload')}
+                        className={cn(
+                          'px-3 py-1 text-xs rounded-md transition-colors',
+                          imageInputMode === 'upload'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted'
+                        )}
+                      >
+                        <Upload className="w-3 h-3 inline mr-1" />
+                        Upload
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageInputMode('url')}
+                        className={cn(
+                          'px-3 py-1 text-xs rounded-md transition-colors',
+                          imageInputMode === 'url'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted'
+                        )}
+                      >
+                        <LinkIcon className="w-3 h-3 inline mr-1" />
+                        From URL
+                      </button>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-16 w-16 border-2 border-dashed border-border">
                       <AvatarImage src={imagePreview || undefined} />
@@ -373,35 +441,50 @@ export default function InventoryAdd() {
                         <Package className="w-6 h-6 text-muted-foreground" />
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col gap-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        accept="image/*"
-                        onChange={handleImageSelect}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploading}
-                      >
-                        {isUploading ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="w-4 h-4 mr-2" />
-                        )}
-                        {imagePreview ? 'Change' : 'Upload'}
-                      </Button>
-                      {imagePreview && (
+                    <div className="flex flex-col gap-2 flex-1">
+                      {imageInputMode === 'upload' ? (
+                        <>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            accept="image/*"
+                            onChange={handleImageSelect}
+                            className="hidden"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                          >
+                            {isUploading ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Upload className="w-4 h-4 mr-2" />
+                            )}
+                            {imagePreview ? 'Change' : 'Upload'}
+                          </Button>
+                        </>
+                      ) : (
+                        <Input
+                          type="url"
+                          placeholder="https://example.com/image.png"
+                          value={imageUrlInput}
+                          onChange={(e) => {
+                            setImageUrlInput(e.target.value);
+                            if (e.target.value) setImagePreview(e.target.value);
+                          }}
+                          className="text-sm"
+                        />
+                      )}
+                      {(imagePreview || imageUrlInput) && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={removeImage}
-                          className="text-destructive hover:text-destructive"
+                          className="text-destructive hover:text-destructive w-fit"
                         >
                           <X className="w-4 h-4 mr-2" />
                           Remove
@@ -409,6 +492,11 @@ export default function InventoryAdd() {
                       )}
                     </div>
                   </div>
+                  {imageInputMode === 'url' && imageUrlInput && (
+                    <p className="text-xs text-muted-foreground">
+                      Image will be downloaded and stored permanently when you submit.
+                    </p>
+                  )}
                 </div>
               </div>
 
