@@ -539,6 +539,16 @@ export function ItemTransactionHistory({
               )}
             </ScrollArea>
           </TabsContent>
+
+          <TabsContent value="trends">
+            <div className="py-2">
+              <PriceHistoryChart
+                itemId={item.id}
+                inventoryEntries={inventoryEntries}
+                sales={sales}
+              />
+            </div>
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
