@@ -112,8 +112,33 @@ export default function InventoryAdd() {
   const removeImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setImageUrlInput('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  // Download image from URL via edge function
+  const handleImageFromUrl = async (itemId: string): Promise<string | null> => {
+    if (!imageUrlInput.trim()) return null;
+    
+    setIsDownloadingUrl(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      
+      const response = await supabase.functions.invoke('download-image', {
+        body: { imageUrl: imageUrlInput.trim(), itemId },
+      });
+      
+      if (response.error) throw new Error(response.error.message);
+      return response.data?.publicUrl || null;
+    } catch (error) {
+      console.error('Error downloading image from URL:', error);
+      toast.error('Failed to download image from URL');
+      return null;
+    } finally {
+      setIsDownloadingUrl(false);
     }
   };
 
