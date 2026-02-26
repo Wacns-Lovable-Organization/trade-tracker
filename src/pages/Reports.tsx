@@ -229,6 +229,9 @@ export default function Reports() {
         </Card>
       </div>
 
+      {/* Cost Breakdown Report */}
+      <CostBreakdownReport />
+
       {/* AI Sales Forecasting */}
       <Card>
         <CardHeader>
