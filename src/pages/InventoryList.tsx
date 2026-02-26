@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Plus, Package, Search, Filter } from 'lucide-react';
+import { Plus, Package, Search, Filter, Ban } from 'lucide-react';
 import { GroupedItemCard, type GroupedItem } from '@/components/inventory/GroupedItemCard';
 import { ItemTransactionHistory } from '@/components/inventory/ItemTransactionHistory';
 import type { CurrencyUnit } from '@/types/inventory';
