@@ -48,7 +48,7 @@ export function IntegrationsCard() {
       return;
     }
     setIsSaving(true);
-    const { error } = await updateSettings({ discord_webhook_url: webhookUrl || null } as any);
+    const { error } = await updateSettings({ discord_webhook_url: webhookUrl || null });
     if (error) {
       toast.error('Failed to save webhook URL');
     } else {
