@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -26,7 +27,8 @@ import {
   ShoppingCart,
   Archive,
   Loader2,
-  CheckSquare
+  CheckSquare,
+  Search
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -51,6 +53,13 @@ export default function DeletedRecords() {
   const [confirmAction, setConfirmAction] = useState<{ record?: DeletedRecord; records?: DeletedRecord[]; action: 'restore' | 'delete' } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredRecords = useMemo(() => {
+    if (!searchQuery.trim()) return records;
+    const q = searchQuery.toLowerCase();
+    return records.filter(r => r.name.toLowerCase().includes(q) || r.details.toLowerCase().includes(q));
+  }, [records, searchQuery]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -61,10 +70,10 @@ export default function DeletedRecords() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === records.length) {
+    if (selectedIds.size === filteredRecords.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(records.map(r => `${r.type}-${r.id}`)));
+      setSelectedIds(new Set(filteredRecords.map(r => `${r.type}-${r.id}`)));
     }
   };
 
@@ -128,11 +137,21 @@ export default function DeletedRecords() {
           </SelectContent>
         </Select>
 
-        {records.length > 0 && (
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {filteredRecords.length > 0 && (
           <div className="flex items-center gap-2 ml-auto">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={toggleSelectAll}>
               <CheckSquare className="w-4 h-4" />
-              {selectedIds.size === records.length ? 'Deselect All' : 'Select All'}
+              {selectedIds.size === filteredRecords.length ? 'Deselect All' : 'Select All'}
             </Button>
             {selectedIds.size > 0 && (
               <>
@@ -165,19 +184,21 @@ export default function DeletedRecords() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
-      ) : records.length === 0 ? (
+      ) : filteredRecords.length === 0 ? (
         <div className="text-center py-12 animate-fade-in">
           <Archive className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
           <h3 className="text-lg font-medium mb-1">No deleted records</h3>
           <p className="text-muted-foreground">
-            {filter === 'all' 
-              ? 'Records you delete will appear here for review.' 
-              : `No deleted ${filter} records found.`}
+            {searchQuery
+              ? 'No records match your search.'
+              : filter === 'all' 
+                ? 'Records you delete will appear here for review.' 
+                : `No deleted ${filter} records found.`}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {records.map((record, index) => {
+          {filteredRecords.map((record, index) => {
             const config = typeConfig[record.type];
             const Icon = config.icon;
             
