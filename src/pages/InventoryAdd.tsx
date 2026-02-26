@@ -54,6 +54,9 @@ export default function InventoryAdd() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [isDownloadingUrl, setIsDownloadingUrl] = useState(false);
+  const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filtered items for search
