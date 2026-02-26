@@ -32,6 +32,7 @@ import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import Install from "./pages/Install";
 import DeletedRecords from "./pages/DeletedRecords";
+import SharedSnapshot from "./pages/SharedSnapshot";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
