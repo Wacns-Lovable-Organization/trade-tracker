@@ -25,6 +25,7 @@ import {
   FileText,
   User,
   Package,
+  Archive,
 } from 'lucide-react';
 import appLogo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
