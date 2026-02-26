@@ -231,6 +231,11 @@ export default function InventoryAdd() {
           if (imageUrl) {
             await updateItemImage(selectedItemId, imageUrl);
           }
+        } else if (imageInputMode === 'url' && imageUrlInput.trim()) {
+          const imageUrl = await handleImageFromUrl(selectedItemId);
+          if (imageUrl) {
+            await updateItemImage(selectedItemId, imageUrl);
+          }
         }
       } else {
         // This atomically creates the item (if needed) and inventory entry
@@ -250,6 +255,11 @@ export default function InventoryAdd() {
         // Upload image for new item
         if (imageFile && itemId) {
           const imageUrl = await uploadImage(itemId);
+          if (imageUrl) {
+            await updateItemImage(itemId, imageUrl);
+          }
+        } else if (imageInputMode === 'url' && imageUrlInput.trim() && itemId) {
+          const imageUrl = await handleImageFromUrl(itemId);
           if (imageUrl) {
             await updateItemImage(itemId, imageUrl);
           }
