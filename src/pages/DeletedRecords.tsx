@@ -59,12 +59,25 @@ export default function DeletedRecords() {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
 
   const filteredRecords = useMemo(() => {
-    if (!searchQuery.trim()) return records;
-    const q = searchQuery.toLowerCase();
-    return records.filter(r => r.name.toLowerCase().includes(q) || r.details.toLowerCase().includes(q));
-  }, [records, searchQuery]);
+    let result = records;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(r => r.name.toLowerCase().includes(q) || r.details.toLowerCase().includes(q));
+    }
+    if (dateFrom || dateTo) {
+      result = result.filter(r => {
+        const d = new Date(r.createdAt);
+        if (dateFrom && d < startOfDay(dateFrom)) return false;
+        if (dateTo && d > endOfDay(dateTo)) return false;
+        return true;
+      });
+    }
+    return result;
+  }, [records, searchQuery, dateFrom, dateTo]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
