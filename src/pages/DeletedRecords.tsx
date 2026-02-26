@@ -53,6 +53,13 @@ export default function DeletedRecords() {
   const [confirmAction, setConfirmAction] = useState<{ record?: DeletedRecord; records?: DeletedRecord[]; action: 'restore' | 'delete' } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredRecords = useMemo(() => {
+    if (!searchQuery.trim()) return records;
+    const q = searchQuery.toLowerCase();
+    return records.filter(r => r.name.toLowerCase().includes(q) || r.details.toLowerCase().includes(q));
+  }, [records, searchQuery]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
