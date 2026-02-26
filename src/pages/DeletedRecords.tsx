@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useDeletedRecords, type DeletedRecord } from '@/hooks/useDeletedRecords';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -24,7 +25,8 @@ import {
   Receipt, 
   ShoppingCart,
   Archive,
-  Loader2
+  Loader2,
+  CheckSquare
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -46,23 +48,50 @@ export default function DeletedRecords() {
     permanentlyDelete 
   } = useDeletedRecords();
   
-  const [confirmAction, setConfirmAction] = useState<{ record: DeletedRecord; action: 'restore' | 'delete' } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ record?: DeletedRecord; records?: DeletedRecord[]; action: 'restore' | 'delete' } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === records.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(records.map(r => `${r.type}-${r.id}`)));
+    }
+  };
+
+  const selectedRecords = useMemo(() => 
+    records.filter(r => selectedIds.has(`${r.type}-${r.id}`)),
+    [records, selectedIds]
+  );
 
   const handleAction = async () => {
     if (!confirmAction) return;
     
     setActionLoading(true);
     try {
-      if (confirmAction.action === 'restore') {
-        await restoreRecord(confirmAction.record);
-        toast.success(`${confirmAction.record.name} restored successfully`);
-      } else {
-        await permanentlyDelete(confirmAction.record);
-        toast.success(`${confirmAction.record.name} permanently deleted`);
+      const targets = confirmAction.records || (confirmAction.record ? [confirmAction.record] : []);
+      for (const rec of targets) {
+        if (confirmAction.action === 'restore') {
+          await restoreRecord(rec);
+        } else {
+          await permanentlyDelete(rec);
+        }
       }
+      const count = targets.length;
+      const label = count === 1 ? targets[0].name : `${count} records`;
+      toast.success(`${label} ${confirmAction.action === 'restore' ? 'restored' : 'permanently deleted'}`);
+      setSelectedIds(new Set());
     } catch (error) {
-      toast.error(`Failed to ${confirmAction.action} record`);
+      toast.error(`Failed to ${confirmAction.action} records`);
     } finally {
       setActionLoading(false);
       setConfirmAction(null);
@@ -84,9 +113,9 @@ export default function DeletedRecords() {
         description={`${allRecords.length} soft-deleted records available for review or restoration`}
       />
 
-      {/* Filter */}
-      <div className="flex items-center gap-3">
-        <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+      {/* Filter & Bulk Actions */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Select value={filter} onValueChange={(v) => { setFilter(v as typeof filter); setSelectedIds(new Set()); }}>
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
@@ -98,6 +127,37 @@ export default function DeletedRecords() {
             <SelectItem value="expense">Expenses ({counts.expense})</SelectItem>
           </SelectContent>
         </Select>
+
+        {records.length > 0 && (
+          <div className="flex items-center gap-2 ml-auto">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={toggleSelectAll}>
+              <CheckSquare className="w-4 h-4" />
+              {selectedIds.size === records.length ? 'Deselect All' : 'Select All'}
+            </Button>
+            {selectedIds.size > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setConfirmAction({ records: selectedRecords, action: 'restore' })}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Restore ({selectedIds.size})
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setConfirmAction({ records: selectedRecords, action: 'delete' })}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete ({selectedIds.size})
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Records List */}
@@ -129,6 +189,10 @@ export default function DeletedRecords() {
               >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
+                    <Checkbox
+                      checked={selectedIds.has(`${record.type}-${record.id}`)}
+                      onCheckedChange={() => toggleSelect(`${record.type}-${record.id}`)}
+                    />
                     <div className={`p-2 rounded-lg ${config.color}`}>
                       <Icon className="w-5 h-5" />
                     </div>
@@ -180,13 +244,16 @@ export default function DeletedRecords() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmAction?.action === 'restore' ? 'Restore Record' : 'Permanently Delete'}
+              {confirmAction?.action === 'restore' ? 'Restore Record(s)' : 'Permanently Delete'}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmAction?.action === 'restore' 
-                ? `Are you sure you want to restore "${confirmAction.record.name}"? It will become active again.`
-                : `Are you sure you want to permanently delete "${confirmAction?.record.name}"? This action cannot be undone.`
-              }
+              {(() => {
+                const count = confirmAction?.records?.length || 1;
+                const label = count > 1 ? `${count} records` : `"${confirmAction?.record?.name || confirmAction?.records?.[0]?.name}"`;
+                return confirmAction?.action === 'restore'
+                  ? `Are you sure you want to restore ${label}? ${count > 1 ? 'They' : 'It'} will become active again.`
+                  : `Are you sure you want to permanently delete ${label}? This action cannot be undone.`;
+              })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
