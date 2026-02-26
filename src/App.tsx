@@ -34,6 +34,9 @@ import Install from "./pages/Install";
 import DeletedRecords from "./pages/DeletedRecords";
 import SharedSnapshot from "./pages/SharedSnapshot";
 import TradeBoard from "./pages/TradeBoard";
+import Goals from "./pages/Goals";
+import Notes from "./pages/Notes";
+import Worlds from "./pages/Worlds";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
