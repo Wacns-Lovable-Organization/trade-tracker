@@ -761,13 +761,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await fetchData();
   }, [user, sales, getTotalAvailableForItem, fetchData]);
 
-  // Delete sale
+  // Soft delete sale (set record_status to 'deleted')
   const deleteSale = useCallback(async (saleId: string) => {
     if (!user) throw new Error('Not authenticated');
     
     const { error } = await supabase
       .from('sales')
-      .delete()
+      .update({ record_status: 'deleted' })
       .eq('id', saleId);
     
     if (error) throw error;
