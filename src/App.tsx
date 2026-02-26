@@ -102,6 +102,11 @@ const App = () => (
                                 } />
                                 <Route path="/reports" element={<Reports />} />
                                 <Route path="/deleted" element={<DeletedRecords />} />
+                                <Route path="/trades" element={
+                                  <FeatureGate featureKey="trade_board">
+                                    <TradeBoard />
+                                  </FeatureGate>
+                                } />
                                 <Route path="/profile" element={<Profile />} />
                                 <Route path="*" element={<NotFound />} />
                               </Routes>

@@ -314,6 +314,9 @@ export default function Settings() {
 
         {/* CSV Import/Export */}
         <CsvImportExport />
+
+        {/* Demo Data Seeder */}
+        <SeedDataButton />
       </div>
     </div>
   );

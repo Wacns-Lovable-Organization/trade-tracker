@@ -64,6 +64,7 @@ const navItems: NavItem[] = [
   { labelKey: 'nav.expenses', href: '/expenses', icon: Receipt, featureKey: 'expense_tracking' },
   { labelKey: 'nav.reports', href: '/reports', icon: FileText },
   { labelKey: 'nav.deletedRecords', href: '/deleted', icon: Archive },
+  { labelKey: 'nav.tradeBoard', href: '/trades', icon: Megaphone, featureKey: 'trade_board' },
   { labelKey: 'nav.settings', href: '/settings', icon: Settings },
   { labelKey: 'nav.adminPanel', href: '/admin', icon: Shield, adminOnly: true },
 ];
